@@ -21,3 +21,4 @@ media/
 # Editor settings
 .vscode/
 .idea/
+.kilo/
