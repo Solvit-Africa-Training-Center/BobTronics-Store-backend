@@ -1,4 +1,5 @@
 """Django settings for the BobTronics Store API."""
+from datetime import timedelta
 from pathlib import Path
 from decouple import config
 
@@ -17,6 +18,7 @@ INSTALLED_APPS = [
     "apps.deliveries.apps.DeliveriesConfig", "apps.promotions.apps.PromotionsConfig",
     "apps.reviews.apps.ReviewsConfig", "apps.audit.apps.AuditConfig",
     "rest_framework", "django_filters", "drf_spectacular",
+    "rest_framework_simplejwt.token_blacklist",
 ]
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware", "django.contrib.sessions.middleware.SessionMiddleware",
@@ -54,6 +56,15 @@ USE_TZ = True
 STATIC_URL = "static/"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+    "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": True,
+    "USER_ID_FIELD": "user_id",
+    "USER_ID_CLAIM": "user_id",
+}
+
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": ("rest_framework_simplejwt.authentication.JWTAuthentication",),
     "DEFAULT_FILTER_BACKENDS": ("django_filters.rest_framework.DjangoFilterBackend",),
@@ -67,7 +78,13 @@ SPECTACULAR_SETTINGS = {
     "TITLE": "B?B TRONICS Store API", "DESCRIPTION": "Backend API for the B?B TRONICS Store.",
     "VERSION": "1.0.0", "SERVE_INCLUDE_SCHEMA": False,
 }
-MAILERS = {"default": {"BACKEND": "django.core.mail.backends.console.EmailBackend"}}
+EMAIL_BACKEND = config("EMAIL_BACKEND", default="") or "django.core.mail.backends.console.EmailBackend"
+EMAIL_HOST = config("EMAIL_HOST", default="")
+EMAIL_PORT = int(config("EMAIL_PORT", default="587") or 587)
+EMAIL_HOST_USER = config("EMAIL_HOST_USER", default="")
+EMAIL_HOST_PASSWORD = config("EMAIL_HOST_PASSWORD", default="")
+EMAIL_USE_TLS = config("EMAIL_USE_TLS", default=True, cast=bool)
+DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="") or "noreply@localhost"
 
 def api_exception_handler(exc, context):
     """Return API errors in a consistent envelope."""
