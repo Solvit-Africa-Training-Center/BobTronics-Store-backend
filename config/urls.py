@@ -20,10 +20,16 @@ def health_check(request):
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    # Health check
     path("api/v1/health/", health_check, name="health-check"),
+    # Authentication routes
     path("api/v1/auth/login/", LoginView.as_view(), name="auth-login"),
     path("api/v1/auth/refresh/", TokenRefreshView.as_view(), name="auth-refresh"),
+    # Accounts API (Member A — registration, logout, current-user etc.)
     path("api/v1/accounts/", include("apps.accounts.urls")),
+    # Customer Profile & Address API (Member C — Day 2)
+    path("api/v1/customers/", include("apps.accounts.customer_urls")),
+    # OpenAPI Schema & Interactive Documentation
     path("api/v1/schema/", SpectacularAPIView.as_view(), name="schema"),
     path("api/v1/docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="swagger-ui"),
     path("api/v1/redoc/", SpectacularRedocView.as_view(url_name="schema"), name="redoc"),

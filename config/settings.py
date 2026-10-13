@@ -76,7 +76,7 @@ REST_FRAMEWORK = {
     "EXCEPTION_HANDLER": "config.settings.api_exception_handler",
 }
 SPECTACULAR_SETTINGS = {
-    "TITLE": "B?B TRONICS Store API", "DESCRIPTION": "Backend API for the B?B TRONICS Store.",
+    "TITLE": "BØB TRONICS Store API", "DESCRIPTION": "Backend API for the BØB TRONICS Store.",
     "VERSION": "1.0.0", "SERVE_INCLUDE_SCHEMA": False,
 }
 EMAIL_BACKEND = config("EMAIL_BACKEND", default="") or "django.core.mail.backends.console.EmailBackend"
@@ -86,6 +86,11 @@ EMAIL_HOST_USER = config("EMAIL_HOST_USER", default="")
 EMAIL_HOST_PASSWORD = config("EMAIL_HOST_PASSWORD", default="")
 EMAIL_USE_TLS = config("EMAIL_USE_TLS", default=True, cast=bool)
 DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="") or "noreply@localhost"
+
+# Media files
+MEDIA_URL = "media/"
+MEDIA_ROOT = BASE_DIR / "media"
+
 
 def api_exception_handler(exc, context):
     """Return API errors in a consistent envelope."""
