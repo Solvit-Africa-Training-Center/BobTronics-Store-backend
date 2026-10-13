@@ -3,7 +3,7 @@ from django.db.models import Count, Prefetch, Q, Sum, Value
 from django.db.models.functions import Coalesce
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.utils import OpenApiResponse, extend_schema
-from rest_framework import filters, generics, permissions, status
+from rest_framework import filters, generics, status
 from rest_framework.response import Response
 from apps.orders.models import Order
 
@@ -15,7 +15,7 @@ from .customer_serializers import (
     CustomerProfileSerializer,
     CustomerProfileUpdateSerializer,
 )
-from .permissions import IsAdminOrSuperAdmin
+from .permissions import IsAdminOrSuperAdmin, IsCustomer
 
 
 class CustomerProfileView(generics.RetrieveUpdateAPIView):
@@ -28,7 +28,7 @@ class CustomerProfileView(generics.RetrieveUpdateAPIView):
     Email and role are protected from modification.
     """
 
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsCustomer]
 
     def get_serializer_class(self):
         if self.request.method in ["PUT", "PATCH"]:
@@ -108,7 +108,7 @@ class CustomerAddressView(generics.RetrieveUpdateAPIView):
     Update shipping residence address and phone for checkout convenience.
     """
 
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsCustomer]
     serializer_class = CustomerAddressSerializer
 
     def get_object(self):
