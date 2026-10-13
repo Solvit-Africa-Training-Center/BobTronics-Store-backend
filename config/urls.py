@@ -1,4 +1,5 @@
 """URL configuration for the BobTronics Store API."""
+
 from django.contrib import admin
 from django.urls import include, path
 from drf_spectacular.utils import extend_schema

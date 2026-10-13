@@ -1,5 +1,6 @@
 from drf_spectacular.utils import OpenApiExample, OpenApiResponse, extend_schema, extend_schema_view
 from rest_framework import generics, permissions, status
+from rest_framework.throttling import AnonRateThrottle
 from rest_framework.response import Response
 from rest_framework_simplejwt.views import TokenRefreshView
 
@@ -22,9 +23,16 @@ from apps.accounts.services import ACTIVATION_MESSAGE, PASSWORD_RESET_MESSAGE
 ERROR_RESPONSE = OpenApiResponse(description="Validation or token error returned in the standard API error envelope.")
 
 
+class LoginRateThrottle(AnonRateThrottle):
+    """Limit unauthenticated login attempts by client IP."""
+
+    scope = "auth_login"
+
+
 class LoginView(generics.GenericAPIView):
     serializer_class = LoginSerializer
     permission_classes = [permissions.AllowAny]
+    throttle_classes = [LoginRateThrottle]
 
     @extend_schema(
         summary="User Login",
