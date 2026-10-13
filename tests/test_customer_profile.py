@@ -162,13 +162,15 @@ class CustomerProfileUpdateTestCase(APITestCase):
         payload = {"first_name": "   "}
         response = self.client.patch(self.url, payload, format="json", **self.auth)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("first_name", response.data)
+        errors = response.data.get("error", {}).get("details", response.data)
+        self.assertIn("first_name", errors)
 
     def test_blank_last_name_is_rejected(self):
         payload = {"last_name": "   "}
         response = self.client.patch(self.url, payload, format="json", **self.auth)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("last_name", response.data)
+        errors = response.data.get("error", {}).get("details", response.data)
+        self.assertIn("last_name", errors)
 
     def test_whitespace_is_stripped_from_name_fields(self):
         payload = {"first_name": "  Robert  ", "last_name": "  Tech  "}
@@ -227,7 +229,8 @@ class CustomerAddressTestCase(APITestCase):
         payload = {"residence": "   "}
         response = self.client.put(self.url, payload, format="json", **self.auth)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("residence", response.data)
+        errors = response.data.get("error", {}).get("details", response.data)
+        self.assertIn("residence", errors)
 
     def test_unauthenticated_request_is_rejected(self):
         response = self.client.get(self.url)

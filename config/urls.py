@@ -25,9 +25,10 @@ urlpatterns = [
     # Authentication routes
     path("api/v1/auth/login/", LoginView.as_view(), name="auth-login"),
     path("api/v1/auth/refresh/", TokenRefreshView.as_view(), name="auth-refresh"),
+    path("api/v1/token/refresh/", TokenRefreshView.as_view(), name="token-refresh"),
     # Accounts API (Member A — registration, logout, current-user etc.)
     path("api/v1/accounts/", include("apps.accounts.urls")),
-    # Customer Profile & Address API (Member C — Day 2)
+    # Customer Profile & Address API 
     path("api/v1/customers/", include("apps.accounts.customer_urls")),
     # OpenAPI Schema & Interactive Documentation
     path("api/v1/schema/", SpectacularAPIView.as_view(), name="schema"),
