@@ -1,3 +1,6 @@
+import hashlib
+
+from django.core.cache import cache
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
@@ -12,6 +15,30 @@ from apps.accounts.services import (
     register_user,
     request_password_reset,
 )
+
+LOGIN_FAILURE_LIMIT = 5
+LOGIN_LOCKOUT_SECONDS = 15 * 60
+INVALID_LOGIN_MESSAGE = "Invalid email or password."
+
+
+def _login_lockout_keys(email, request):
+    """Build opaque cache keys scoped to an email and client IP pair."""
+    client_ip = request.META.get("REMOTE_ADDR", "unknown") if request else "unknown"
+    identity = hashlib.sha256(f"{email}\0{client_ip}".encode()).hexdigest()
+    return f"auth:login:failures:{identity}", f"auth:login:locked:{identity}"
+
+
+def _record_login_failure(email, request):
+    failures_key, locked_key = _login_lockout_keys(email, request)
+    failures = cache.get(failures_key, 0) + 1
+    cache.set(failures_key, failures, timeout=LOGIN_LOCKOUT_SECONDS)
+    if failures >= LOGIN_FAILURE_LIMIT:
+        cache.set(locked_key, True, timeout=LOGIN_LOCKOUT_SECONDS)
+
+
+def _clear_login_failures(email, request):
+    failures_key, locked_key = _login_lockout_keys(email, request)
+    cache.delete_many([failures_key, locked_key])
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -144,14 +171,21 @@ class LoginSerializer(serializers.Serializer):
     def validate(self, attrs):
         email = attrs["email"].strip().lower()
         password = attrs["password"]
+        request = self.context.get("request")
+        _, locked_key = _login_lockout_keys(email, request)
+        if cache.get(locked_key):
+            raise serializers.ValidationError({"detail": INVALID_LOGIN_MESSAGE})
         try:
             user = User.objects.get(email__iexact=email)
         except User.DoesNotExist as exc:
-            raise serializers.ValidationError({"detail": "Invalid email or password."}) from exc
+            _record_login_failure(email, request)
+            raise serializers.ValidationError({"detail": INVALID_LOGIN_MESSAGE}) from exc
         if not user.check_password(password):
-            raise serializers.ValidationError({"detail": "Invalid email or password."})
+            _record_login_failure(email, request)
+            raise serializers.ValidationError({"detail": INVALID_LOGIN_MESSAGE})
         if not user.is_active:
             raise serializers.ValidationError({"detail": "Account is not activated. Please verify your email before logging in."})
+        _clear_login_failures(email, request)
         refresh = RefreshToken.for_user(user)
         refresh["role"] = user.role
         refresh["email"] = user.email
