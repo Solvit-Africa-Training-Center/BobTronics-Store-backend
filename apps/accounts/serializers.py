@@ -1,8 +1,8 @@
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
-from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenRefreshSerializer
+from rest_framework_simplejwt.tokens import RefreshToken
 
 from apps.accounts.models import User
 from apps.accounts.services import (
@@ -22,6 +22,15 @@ class UserSerializer(serializers.ModelSerializer):
             "role", "created_at", "updated_at",
         )
         read_only_fields = fields
+
+
+class UserProfileSerializer(UserSerializer):
+    """Profile serializer retained for the dev login response contract."""
+
+    class Meta(UserSerializer.Meta):
+        fields = (
+            "user_id", "email", "first_name", "last_name", "role", "phone", "residence", "created_at",
+        )
 
 
 class RegisterSerializer(serializers.Serializer):
@@ -116,3 +125,37 @@ class MessageSerializer(serializers.Serializer):
 class RegistrationResponseSerializer(serializers.Serializer):
     message = serializers.CharField()
     user = UserSerializer()
+
+
+class TokenResponseSerializer(serializers.Serializer):
+    access = serializers.CharField()
+    refresh = serializers.CharField()
+
+
+class LoginResponseSerializer(serializers.Serializer):
+    user = UserProfileSerializer()
+    tokens = TokenResponseSerializer()
+
+
+class LoginSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    password = serializers.CharField(write_only=True, style={"input_type": "password"})
+
+    def validate(self, attrs):
+        email = attrs["email"].strip().lower()
+        password = attrs["password"]
+        try:
+            user = User.objects.get(email__iexact=email)
+        except User.DoesNotExist as exc:
+            raise serializers.ValidationError({"detail": "Invalid email or password."}) from exc
+        if not user.check_password(password):
+            raise serializers.ValidationError({"detail": "Invalid email or password."})
+        if not user.is_active:
+            raise serializers.ValidationError({"detail": "Account is not activated. Please verify your email before logging in."})
+        refresh = RefreshToken.for_user(user)
+        refresh["role"] = user.role
+        refresh["email"] = user.email
+        return {
+            "user": user,
+            "tokens": {"access": str(refresh.access_token), "refresh": str(refresh)},
+        }

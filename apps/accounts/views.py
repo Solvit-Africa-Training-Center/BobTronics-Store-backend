@@ -5,6 +5,8 @@ from rest_framework_simplejwt.views import TokenRefreshView
 
 from apps.accounts.serializers import (
     ActivationSerializer,
+    LoginResponseSerializer,
+    LoginSerializer,
     LogoutSerializer,
     MessageSerializer,
     PasswordResetConfirmSerializer,
@@ -13,10 +15,33 @@ from apps.accounts.serializers import (
     RegisterSerializer,
     RegistrationResponseSerializer,
     UserSerializer,
+    UserProfileSerializer,
 )
 from apps.accounts.services import ACTIVATION_MESSAGE, PASSWORD_RESET_MESSAGE
 
 ERROR_RESPONSE = OpenApiResponse(description="Validation or token error returned in the standard API error envelope.")
+
+
+class LoginView(generics.GenericAPIView):
+    serializer_class = LoginSerializer
+    permission_classes = [permissions.AllowAny]
+
+    @extend_schema(
+        summary="User Login",
+        description="Authenticates active user credentials and returns JWT access/refresh tokens. Rejects unactivated accounts.",
+        request=LoginSerializer,
+        responses={200: LoginResponseSerializer, 400: OpenApiResponse(description="Invalid email/password or account not activated")},
+        tags=["Authentication"],
+    )
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.validated_data["user"]
+        return Response({
+            "message": "Login successful.",
+            "user": UserProfileSerializer(user).data,
+            "tokens": serializer.validated_data["tokens"],
+        }, status=status.HTTP_200_OK)
 
 
 @extend_schema_view(post=extend_schema(
