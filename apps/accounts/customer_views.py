@@ -1,6 +1,7 @@
 from decimal import Decimal
 from django.db.models import Count, Prefetch, Q, Sum, Value
 from django.db.models.functions import Coalesce
+from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework import filters, generics, permissions, status
 from rest_framework.response import Response
@@ -166,7 +167,8 @@ class AdminCustomerListView(generics.ListAPIView):
 
     permission_classes = [IsAdminOrSuperAdmin]
     serializer_class = AdminCustomerListSerializer
-    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ["is_active"]
     search_fields = ["first_name", "last_name", "email", "phone", "residence"]
     ordering_fields = ["created_at", "first_name", "last_name", "total_orders"]
     ordering = ["-created_at"]
