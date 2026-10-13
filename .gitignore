@@ -1,9 +1,9 @@
-
 # Python
 __pycache__/
 *.py[cod]
 .venv/
 venv/
+env/
 
 # Environment secrets
 .env
@@ -13,6 +13,7 @@ venv/
 # Local databases
 db.sqlite3
 *.sqlite3
+*.db
 
 # Generated files
 staticfiles/
@@ -21,4 +22,4 @@ media/
 # Editor settings
 .vscode/
 .idea/
-.kilo/
+.kilo/
