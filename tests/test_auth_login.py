@@ -2,6 +2,7 @@ import time
 from unittest.mock import patch
 
 from django.core.cache import cache
+from django.test import override_settings
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
@@ -11,6 +12,12 @@ from apps.accounts.models import Role, User
 from apps.accounts.views import LoginRateThrottle
 
 
+@override_settings(CACHES={
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "auth-login-tests",
+    }
+})
 class LoginAPITestCase(APITestCase):
     def setUp(self):
         cache.clear()
