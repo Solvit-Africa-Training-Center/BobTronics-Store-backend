@@ -172,7 +172,7 @@ class AccountApiTests(APITestCase):
         self.assertEqual(rejected.status_code, 401)
 
     def test_auth_endpoints_appear_in_openapi_schema(self):
-        response = self.client.get("/api/schema/")
+        response = self.client.get("/api/v1/schema/")
         self.assertEqual(response.status_code, 200)
         schema = yaml.safe_load(response.content)
         paths = schema["paths"]

@@ -24,7 +24,7 @@ urlpatterns = [
     path("api/v1/health/", health_check, name="health-check"),
     # Authentication routes
     path("api/v1/auth/login/", LoginView.as_view(), name="auth-login"),
-    path("api/v1/auth/refresh/", TokenRefreshView.as_view(), name="auth-refresh"),
+    path("api/v1/auth/refresh/", TokenRefreshView.as_view(), name="token-refresh"),
     # Accounts API (Member A — registration, logout, current-user etc.)
     path("api/v1/accounts/", include("apps.accounts.urls")),
     # Customer Profile & Address API (Member C — Day 2)

@@ -64,10 +64,10 @@ class LoginAPITestCase(APITestCase):
         response = self.client.post(self.login_url, data, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("detail", response.data)
+        self.assertFalse(response.data["success"])
         self.assertIn(
             "Account is not activated. Please verify your email before logging in.",
-            response.data["detail"],
+            response.data["error"]["message"],
         )
 
     def test_wrong_password_returns_generic_error(self):
@@ -78,8 +78,8 @@ class LoginAPITestCase(APITestCase):
         response = self.client.post(self.login_url, data, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("detail", response.data)
-        self.assertIn("Invalid email or password.", response.data["detail"])
+        self.assertFalse(response.data["success"])
+        self.assertIn("Invalid email or password.", response.data["error"]["message"])
 
     def test_nonexistent_email_returns_generic_error(self):
         data = {
@@ -89,8 +89,8 @@ class LoginAPITestCase(APITestCase):
         response = self.client.post(self.login_url, data, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("detail", response.data)
-        self.assertIn("Invalid email or password.", response.data["detail"])
+        self.assertFalse(response.data["success"])
+        self.assertIn("Invalid email or password.", response.data["error"]["message"])
 
     def test_token_refresh_workflow(self):
         # First login to obtain refresh token
