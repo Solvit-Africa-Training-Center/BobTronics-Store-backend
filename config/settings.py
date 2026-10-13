@@ -43,6 +43,12 @@ DATABASES = {"default": {
     "USER": config("DB_USER", default=""), "PASSWORD": config("DB_PASSWORD", default=""),
     "HOST": config("DB_HOST", default=""), "PORT": config("DB_PORT", default=""),
 }}
+CACHES = {
+    "default": {
+        "BACKEND": config("CACHE_BACKEND", default="django.core.cache.backends.locmem.LocMemCache"),
+        "LOCATION": config("CACHE_LOCATION", default="bobtronics-auth-cache"),
+    }
+}
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
@@ -57,7 +63,7 @@ STATIC_URL = "static/"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
     "ROTATE_REFRESH_TOKENS": True,
     "BLACKLIST_AFTER_ROTATION": True,
@@ -75,6 +81,9 @@ REST_FRAMEWORK = {
     "PAGE_SIZE": 20,
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "EXCEPTION_HANDLER": "config.settings.api_exception_handler",
+    "DEFAULT_THROTTLE_RATES": {
+        "auth_login": "5/minute",
+    },
 }
 SPECTACULAR_SETTINGS = {
     "TITLE": "BØB TRONICS Store API", "DESCRIPTION": "Backend API for the BØB TRONICS Store.",
