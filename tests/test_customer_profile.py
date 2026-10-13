@@ -103,6 +103,11 @@ class CustomerProfileGetTestCase(APITestCase):
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
+    def test_admin_cannot_use_customer_self_service_profile(self):
+        admin = make_admin("profile-admin@bobtronics.com")
+        response = self.client.get(self.url, **get_jwt_header(admin))
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
 
 class CustomerProfileUpdateTestCase(APITestCase):
     """PUT / PATCH /api/v1/customers/profile/"""
@@ -233,6 +238,11 @@ class CustomerAddressTestCase(APITestCase):
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
+    def test_admin_cannot_use_customer_self_service_address(self):
+        admin = make_admin("address-admin@bobtronics.com")
+        response = self.client.get(self.url, **get_jwt_header(admin))
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
     def test_success_response_includes_message(self):
         payload = {"residence": "Kicukiro, Kigali"}
         response = self.client.put(self.url, payload, format="json", **self.auth)
@@ -268,6 +278,13 @@ class AdminCustomerListTestCase(APITestCase):
 
     def test_customer_cannot_access_admin_list(self):
         response = self.client.get(self.url, **self.customer_auth)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_staff_flag_does_not_grant_api_admin_access(self):
+        staff_customer = make_customer("staff-customer@bobtronics.com")
+        staff_customer.is_staff = True
+        staff_customer.save(update_fields=["is_staff"])
+        response = self.client.get(self.url, **get_jwt_header(staff_customer))
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_unauthenticated_request_is_rejected(self):

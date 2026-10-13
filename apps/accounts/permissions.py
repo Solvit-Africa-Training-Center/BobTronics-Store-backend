@@ -2,37 +2,51 @@ from rest_framework.permissions import BasePermission
 from .models import Role
 
 
-class IsAdminOrSuperAdmin(BasePermission):
-    """
-    Allows access only to authenticated users who have ADMIN or SUPER_ADMIN role,
-    or is_staff=True.
-    """
+class IsCustomer(BasePermission):
+    """Allow authenticated customer accounts to use customer self-service APIs."""
 
     def has_permission(self, request, view):
+        user = request.user
+        return bool(user and user.is_authenticated and user.role == Role.CUSTOMER)
+
+
+class IsAdminOrSuperAdmin(BasePermission):
+    """Allow API access only to accounts with an admin role."""
+
+    def has_permission(self, request, view):
+        user = request.user
         return bool(
-            request.user
-            and request.user.is_authenticated
-            and (
-                request.user.role in [Role.ADMIN, Role.SUPER_ADMIN]
-                or request.user.is_staff
-                or request.user.is_superuser
-            )
+            user
+            and user.is_authenticated
+            and user.role in (Role.ADMIN, Role.SUPER_ADMIN)
         )
 
 
+class IsSuperAdmin(BasePermission):
+    """Allow access only to super-admin accounts."""
+
+    def has_permission(self, request, view):
+        user = request.user
+        return bool(user and user.is_authenticated and user.role == Role.SUPER_ADMIN)
+
+
 class IsOwnerOrAdmin(BasePermission):
-    """
-    Object-level permission allowing users to access only their own objects,
-    unless they have administrative privileges.
-    """
+    """Allow customers to access their own records and admins to manage records."""
+
+    def has_permission(self, request, view):
+        return bool(request.user and request.user.is_authenticated)
 
     def has_object_permission(self, request, view, obj):
-        if not (request.user and request.user.is_authenticated):
+        user = request.user
+        if not (user and user.is_authenticated):
             return False
-        if (
-            request.user.role in [Role.ADMIN, Role.SUPER_ADMIN]
-            or request.user.is_staff
-            or request.user.is_superuser
-        ):
+        if user.role in (Role.ADMIN, Role.SUPER_ADMIN):
             return True
-        return hasattr(obj, "user") and obj.user == request.user or obj == request.user
+        if user.role != Role.CUSTOMER:
+            return False
+        if obj == user:
+            return True
+        owner = getattr(obj, "user", None)
+        if owner is None:
+            owner = getattr(getattr(obj, "order", None), "user", None)
+        return owner == user
