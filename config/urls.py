@@ -61,6 +61,15 @@ urlpatterns = [
     # Catalog API (public read-only + admin management)
     path("api/v1/catalog/", include("apps.catalog.urls")),
 
+    # Shopping Cart API (Member C — Day 3)
+    path("api/v1/cart/", include("apps.cart.urls")),
+
+    # Wishlist API (Member C — Day 3)
+    path("api/v1/wishlist/", include("apps.wishlist.urls")),
+
+    # Orders & Checkout API (Member C — Day 3)
+    path("api/v1/orders/", include("apps.orders.urls")),
+
     # OpenAPI Schema & Interactive Documentation
     path(
         "api/v1/schema/",
