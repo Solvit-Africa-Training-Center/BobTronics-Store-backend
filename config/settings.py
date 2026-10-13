@@ -44,10 +44,11 @@ DATABASES = {"default": {
     "USER": config("DB_USER", default=""), "PASSWORD": config("DB_PASSWORD", default=""),
     "HOST": config("DB_HOST", default=""), "PORT": config("DB_PORT", default=""),
 }}
+REDIS_URL = config("REDIS_URL", default="redis://127.0.0.1:6379/1")
 CACHES = {
     "default": {
-        "BACKEND": config("CACHE_BACKEND", default="django.core.cache.backends.locmem.LocMemCache"),
-        "LOCATION": config("CACHE_LOCATION", default="bobtronics-auth-cache"),
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": REDIS_URL,
     }
 }
 AUTH_PASSWORD_VALIDATORS = [
