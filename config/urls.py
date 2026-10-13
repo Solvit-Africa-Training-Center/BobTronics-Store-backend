@@ -52,22 +52,22 @@ urlpatterns = [
         name="token-refresh",
     ),
 
-    # Accounts API (Member A — registration, logout, current-user etc.)
+    # Accounts API
     path("api/v1/accounts/", include("apps.accounts.urls")),
 
-    # Customer Profile & Address API (Member C — Day 2)
+    # Customer Profile & Address API
     path("api/v1/customers/", include("apps.accounts.customer_urls")),
 
     # Catalog API (public read-only + admin management)
     path("api/v1/catalog/", include("apps.catalog.urls")),
 
-    # Shopping Cart API (Member C — Day 3)
+    # Shopping Cart API
     path("api/v1/cart/", include("apps.cart.urls")),
 
-    # Wishlist API (Member C — Day 3)
+    # Wishlist API
     path("api/v1/wishlist/", include("apps.wishlist.urls")),
 
-    # Orders & Checkout API (Member C — Day 3)
+    # Orders & Checkout API
     path("api/v1/orders/", include("apps.orders.urls")),
 
     # OpenAPI Schema & Interactive Documentation
