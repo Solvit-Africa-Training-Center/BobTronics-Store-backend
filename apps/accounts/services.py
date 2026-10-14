@@ -1,3 +1,7 @@
+import logging
+from smtplib import SMTPException
+from urllib.parse import urlencode
+
 from django.conf import settings
 from django.contrib.auth.tokens import default_token_generator
 from django.core.mail import send_mail
@@ -11,6 +15,7 @@ from apps.accounts.models import User
 
 ACTIVATION_MESSAGE = "Registration successful. Check your email for account activation instructions."
 PASSWORD_RESET_MESSAGE = "If an active account matches that email, password reset instructions have been sent."
+logger = logging.getLogger(__name__)
 
 
 def _uid_and_token(user):
@@ -19,15 +24,22 @@ def _uid_and_token(user):
 
 def _send_account_email(user, subject, intro, endpoint):
     uid, token = _uid_and_token(user)
+    query = urlencode({"uid": uid, "token": token})
+    link = f"{settings.SITE_URL}{endpoint}?{query}"
     body = (
         f"{intro}\n\n"
+        f"Link: {link}\n"
         f"Account reference: {uid}\n"
         f"Verification token: {token}\n"
-        f"API endpoint: {endpoint}\n\n"
+        f"API endpoint: {settings.SITE_URL}{endpoint}\n\n"
         "Submit these values to the endpoint above. "
         "If you did not request this, you can ignore this message."
     )
-    send_mail(subject, body, settings.DEFAULT_FROM_EMAIL, [user.email], fail_silently=False)
+    try:
+        send_mail(subject, body, settings.DEFAULT_FROM_EMAIL, [user.email], fail_silently=False)
+    except (SMTPException, OSError, TimeoutError) as exc:
+        # Log only the exception type; backend exception text can contain connection details.
+        logger.warning("Account email delivery failed (%s).", type(exc).__name__)
 
 
 @transaction.atomic

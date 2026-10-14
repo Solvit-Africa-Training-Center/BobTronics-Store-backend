@@ -82,25 +82,38 @@ class RegisterView(generics.GenericAPIView):
         return Response({"message": ACTIVATION_MESSAGE, "user": UserSerializer(user).data}, status=status.HTTP_201_CREATED)
 
 
-@extend_schema_view(post=extend_schema(
-    operation_id="accounts_activate",
-    summary="Validate and activate an account",
-    request=ActivationSerializer,
-    responses={200: MessageSerializer, 400: ERROR_RESPONSE},
-    examples=[
-        OpenApiExample("Activation request", request_only=True, value={"uid": "MTI", "token": "token-from-email"}),
-        OpenApiExample("Activation response", response_only=True, status_codes=[200], value={"message": "Account activated successfully."}),
-    ],
-))
+@extend_schema_view(
+    get=extend_schema(
+        operation_id="accounts_activate_from_email_link",
+        summary="Activate an account from its email link",
+        responses={200: MessageSerializer, 400: ERROR_RESPONSE},
+    ),
+    post=extend_schema(
+        operation_id="accounts_activate",
+        summary="Validate and activate an account",
+        request=ActivationSerializer,
+        responses={200: MessageSerializer, 400: ERROR_RESPONSE},
+        examples=[
+            OpenApiExample("Activation request", request_only=True, value={"uid": "MTI", "token": "token-from-email"}),
+            OpenApiExample("Activation response", response_only=True, status_codes=[200], value={"message": "Account activated successfully."}),
+        ],
+    ),
+)
 class ActivateView(generics.GenericAPIView):
     serializer_class = ActivationSerializer
     permission_classes = [permissions.AllowAny]
 
-    def post(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
+    def _activate(self, data):
+        serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response({"message": "Account activated successfully."})
+
+    def get(self, request, *args, **kwargs):
+        return self._activate(request.query_params)
+
+    def post(self, request, *args, **kwargs):
+        return self._activate(request.data)
 
 
 @extend_schema_view(get=extend_schema(

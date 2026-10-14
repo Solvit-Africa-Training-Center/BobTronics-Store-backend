@@ -1,3 +1,7 @@
+import smtplib
+from unittest.mock import patch
+from urllib.parse import parse_qs, urlsplit
+
 from django.core import mail
 from django.contrib.auth.tokens import default_token_generator
 from django.core.exceptions import ValidationError
@@ -97,6 +101,69 @@ class AccountApiTests(APITestCase):
         self.assertEqual(user.role, Role.CUSTOMER)
         self.assertEqual(len(mail.outbox), 1)
         self.assertNotIn("password", response.data["user"])
+
+    @override_settings(
+        SITE_URL="https://accounts.example.test",
+        DEFAULT_FROM_EMAIL="BobTronics <accounts@example.test>",
+    )
+    def test_activation_email_uses_configured_sender_and_site_url(self):
+        self.client.post(self.base_url + "register/", {
+            "first_name": "Aline", "last_name": "Uwase", "email": "aline@example.com",
+            "password": self.password, "password_confirm": self.password,
+        }, format="json")
+
+        self.assertEqual(len(mail.outbox), 1)
+        message = mail.outbox[0]
+        self.assertEqual(message.from_email, "BobTronics <accounts@example.test>")
+        self.assertIn("Link: https://accounts.example.test/api/v1/accounts/activate/?", message.body)
+        self.assertIn("API endpoint: https://accounts.example.test/api/v1/accounts/activate/", message.body)
+
+    @override_settings(SITE_URL="https://accounts.example.test")
+    def test_activation_link_from_email_activates_the_registered_account(self):
+        self.client.post(self.base_url + "register/", {
+            "first_name": "Aline", "last_name": "Uwase", "email": "aline@example.com",
+            "password": self.password, "password_confirm": self.password,
+        }, format="json")
+        user = User.objects.get(email="aline@example.com")
+        self.assertFalse(user.is_active)
+
+        activation_link = next(
+            line.removeprefix("Link: ")
+            for line in mail.outbox[0].body.splitlines()
+            if line.startswith("Link: ")
+        )
+        parsed_link = urlsplit(activation_link)
+        activation_response = self.client.get(parsed_link.path, parse_qs(parsed_link.query))
+
+        self.assertEqual(activation_response.status_code, 200)
+        user.refresh_from_db()
+        self.assertTrue(user.is_active)
+
+    def test_email_delivery_failure_keeps_registration_and_reset_responses_safe(self):
+        self.create_user()
+        secret_error_detail = "smtp-password-must-not-be-logged"
+        smtp_error = smtplib.SMTPAuthenticationError(535, secret_error_detail.encode())
+
+        with self.assertLogs("apps.accounts.services", level="WARNING") as captured_logs:
+            with patch("apps.accounts.services.send_mail", side_effect=smtp_error) as send_mock:
+                registration = self.client.post(self.base_url + "register/", {
+                    "first_name": "New", "last_name": "Customer", "email": "new@example.com",
+                    "password": self.password, "password_confirm": self.password,
+                }, format="json")
+                known_reset = self.client.post(
+                    self.base_url + "password-reset/", {"email": "aline@example.com"}, format="json",
+                )
+                unknown_reset = self.client.post(
+                    self.base_url + "password-reset/", {"email": "nobody@example.com"}, format="json",
+                )
+
+        self.assertEqual(registration.status_code, 201)
+        self.assertEqual(registration.data["message"], "Registration successful. Check your email for account activation instructions.")
+        self.assertEqual(known_reset.status_code, 200)
+        self.assertEqual(known_reset.data, unknown_reset.data)
+        self.assertEqual(send_mock.call_count, 2)
+        self.assertNotIn(secret_error_detail, "\n".join(captured_logs.output))
+        self.assertNotIn("aline@example.com", "\n".join(captured_logs.output))
 
     def test_registration_rejects_mismatched_passwords(self):
         response = self.client.post(self.base_url + "register/", {
