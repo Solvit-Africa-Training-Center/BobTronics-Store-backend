@@ -1,6 +1,8 @@
 from decimal import Decimal
+from django.conf import settings
 from django.core.validators import MinValueValidator
 from django.db import models
+from django.db.models import Q
 
 
 class Category(models.Model):
@@ -89,3 +91,53 @@ class ProductImage(models.Model):
 
     def __str__(self):
         return f"Image for {self.product.name} (Primary: {self.is_primary})"
+
+
+class StockMovementType(models.TextChoices):
+    DEDUCTION = "deduction", "Deduction"
+    RESTORATION = "restoration", "Restoration"
+    ADJUSTMENT = "adjustment", "Adjustment"
+
+
+class StockMovement(models.Model):
+    """Immutable record of a product stock change."""
+
+    movement_id = models.BigAutoField(primary_key=True)
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.PROTECT,
+        related_name="stock_movements",
+        db_index=True,
+    )
+    movement_type = models.CharField(max_length=20, choices=StockMovementType.choices)
+    source = models.CharField(max_length=50, default="other", db_index=True)
+    quantity_change = models.IntegerField()
+    quantity_before = models.PositiveIntegerField()
+    quantity_after = models.PositiveIntegerField()
+    reason = models.CharField(max_length=255, blank=True)
+    reference_id = models.CharField(max_length=64, blank=True)
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="stock_movements",
+    )
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        db_table = "stock_movements"
+        ordering = ["-created_at", "-movement_id"]
+        indexes = [
+            models.Index(fields=["product", "created_at"], name="idx_stock_prod_date"),
+            models.Index(fields=["source", "created_at"], name="idx_stock_source_date"),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                condition=~Q(quantity_change=0),
+                name="stock_movement_change_nonzero",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.product.name}: {self.quantity_change:+d} ({self.source})"

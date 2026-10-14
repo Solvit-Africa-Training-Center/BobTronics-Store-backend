@@ -11,7 +11,7 @@ from rest_framework.response import Response
 from apps.common.permissions import IsAdminRole
 
 from .filters import ProductFilter
-from .models import Category, Product, ProductImage
+from .models import Category, Product, ProductImage, StockMovementType
 from .pagination import StandardPagination
 from .serializers import (
     MAX_STOCK_QUANTITY,
@@ -130,9 +130,22 @@ class ProductAdminViewSet(ProtectedDeleteMixin, viewsets.ModelViewSet):
 
         try:
             if delta > 0:
-                restore_stock([(product.pk, delta)])
+                restore_stock(
+                    [(product.pk, delta)],
+                    source="inventory_adjustment",
+                    reason=reason or "Manual stock increase",
+                    actor=request.user,
+                    movement_type=StockMovementType.ADJUSTMENT,
+                )
             else:
-                deduct_stock([(product.pk, -delta)], require_available=False)
+                deduct_stock(
+                    [(product.pk, -delta)],
+                    require_available=False,
+                    source="inventory_adjustment",
+                    reason=reason or "Manual stock decrease",
+                    actor=request.user,
+                    movement_type=StockMovementType.ADJUSTMENT,
+                )
         except StockError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_409_CONFLICT)
 

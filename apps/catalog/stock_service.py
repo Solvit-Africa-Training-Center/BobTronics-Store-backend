@@ -19,7 +19,7 @@ from django.db import transaction
 from django.db.models import F
 from django.utils import timezone
 
-from .models import Product
+from .models import Product, StockMovement, StockMovementType
 
 
 # ---------------------------------------------------------------------------
@@ -137,7 +137,16 @@ def check_stock(items, *, require_available=True):
 
 
 @transaction.atomic
-def deduct_stock(items, *, require_available=True):
+def deduct_stock(
+    items,
+    *,
+    require_available=True,
+    source="other",
+    reason="",
+    actor=None,
+    reference_id="",
+    movement_type=StockMovementType.DEDUCTION,
+):
     """
     Reduce stock for every item. Returns {product_id: stock_left}.
 
@@ -151,6 +160,7 @@ def deduct_stock(items, *, require_available=True):
     now = timezone.now()
     for product_id in sorted(wanted):
         quantity = wanted[product_id]
+        before = products[product_id].stock_quantity
 
         # The stock_quantity__gte condition makes the check and the update one
         # step, so two buyers can never both take the last unit, even on a
@@ -170,23 +180,56 @@ def deduct_stock(items, *, require_available=True):
                 product_id, products[product_id].name, quantity, available
             )
 
+        StockMovement.objects.create(
+            product_id=product_id,
+            movement_type=movement_type,
+            source=source,
+            quantity_change=-quantity,
+            quantity_before=before,
+            quantity_after=before - quantity,
+            reason=reason,
+            actor=actor,
+            reference_id=str(reference_id) if reference_id else "",
+        )
+
     return _current_levels(wanted)
 
 
 @transaction.atomic
-def restore_stock(items):
+def restore_stock(
+    items,
+    *,
+    source="other",
+    reason="",
+    actor=None,
+    reference_id="",
+    movement_type=StockMovementType.RESTORATION,
+):
     """
     Add units back to stock (cancelled or refunded orders, restocking).
     Returns {product_id: stock_now}.
     """
     wanted = _merge_items(items)
-    _load_products(wanted, lock=True)  # checks the products exist and locks them
+    products = _load_products(wanted, lock=True)
 
     now = timezone.now()
     for product_id in sorted(wanted):
+        quantity = wanted[product_id]
+        before = products[product_id].stock_quantity
         Product.objects.filter(pk=product_id).update(
-            stock_quantity=F("stock_quantity") + wanted[product_id],
+            stock_quantity=F("stock_quantity") + quantity,
             updated_at=now,
+        )
+        StockMovement.objects.create(
+            product_id=product_id,
+            movement_type=movement_type,
+            source=source,
+            quantity_change=quantity,
+            quantity_before=before,
+            quantity_after=before + quantity,
+            reason=reason,
+            actor=actor,
+            reference_id=str(reference_id) if reference_id else "",
         )
 
     return _current_levels(wanted)
