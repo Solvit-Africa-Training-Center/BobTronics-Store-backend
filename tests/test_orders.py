@@ -5,6 +5,7 @@ from rest_framework.test import APITestCase
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from apps.accounts.models import Role, User
+from apps.audit.models import AuditLog
 from apps.cart.models import CartItem
 from apps.catalog.models import Category, Product, StockMovement
 from apps.orders.models import Order, OrderItem, OrderStatus
@@ -114,6 +115,14 @@ class OrderAPITestCase(APITestCase):
             set(movements.values_list("quantity_change", flat=True)),
             {-2, -1},
         )
+        self.assertTrue(
+            AuditLog.objects.filter(
+                action="order.created",
+                entry_type="Order",
+                entity_id=order_id,
+                user=self.customer,
+            ).exists()
+        )
 
     def test_checkout_uses_default_profile_address_when_omitted(self):
         CartItem.objects.create(user=self.customer, product=self.headphone, quantity=1)
@@ -217,6 +226,14 @@ class OrderAPITestCase(APITestCase):
         )
         self.assertEqual(movement.quantity_change, 3)
         self.assertEqual(movement.actor, self.customer)
+        self.assertTrue(
+            AuditLog.objects.filter(
+                action="order.status_changed",
+                entry_type="Order",
+                entity_id=order.order_id,
+                user=self.customer,
+            ).exists()
+        )
 
     def test_cannot_cancel_shipped_order(self):
         order = Order.objects.create(
@@ -260,3 +277,11 @@ class OrderAPITestCase(APITestCase):
         self.assertEqual(update_response.status_code, status.HTTP_200_OK)
         order.refresh_from_db()
         self.assertEqual(order.status, OrderStatus.PROCESSING)
+        self.assertTrue(
+            AuditLog.objects.filter(
+                action="order.status_changed",
+                entry_type="Order",
+                entity_id=order.order_id,
+                user=self.admin,
+            ).exists()
+        )

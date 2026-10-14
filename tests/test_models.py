@@ -151,7 +151,7 @@ class BobTronicsModelsTestCase(TestCase):
         log = AuditLog.objects.create(
             user=temp_user,
             action="CREATE_PRODUCT",
-            entity_type="Product",
+            entry_type="Product",
             entity_id=self.product.product_id,
             description="Added Samsung Galaxy S24 Ultra",
         )

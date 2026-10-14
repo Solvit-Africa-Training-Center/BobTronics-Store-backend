@@ -1,4 +1,5 @@
 from django.shortcuts import get_object_or_404
+from django.db import transaction
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.utils import extend_schema, OpenApiResponse
 from rest_framework import filters, generics, status
@@ -160,7 +161,8 @@ class AdminDeliveryStatusUpdateView(APIView):
             partial=True,
         )
         serializer.is_valid(raise_exception=True)
-        updated_delivery = serializer.save()
+        with transaction.atomic():
+            updated_delivery = serializer.save()
         return Response(
             {
                 "success": True,

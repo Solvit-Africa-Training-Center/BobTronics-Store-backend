@@ -2,7 +2,9 @@ from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework import filters, generics, status
 from rest_framework.response import Response
+from django.db import transaction
 
+from apps.audit.services import log_audit_event
 from apps.accounts.permissions import IsAdminOrSuperAdmin, IsCustomer
 from apps.catalog.pagination import StandardPagination
 
@@ -59,7 +61,16 @@ class CustomerServiceListCreateView(generics.ListCreateAPIView):
     def post(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        service = serializer.save(user=request.user)
+        with transaction.atomic():
+            service = serializer.save(user=request.user)
+            log_audit_event(
+                action="service_request.created",
+                entry_type="Service",
+                entity_id=service.service_id,
+                user=request.user,
+                description="Customer submitted a service request.",
+                request=request,
+            )
         return Response(
             ServiceSerializer(service).data,
             status=status.HTTP_201_CREATED,
@@ -161,5 +172,32 @@ class AdminServiceDetailView(generics.RetrieveUpdateAPIView):
             service, data=request.data, partial=True
         )
         serializer.is_valid(raise_exception=True)
-        service = serializer.save()
+        previous_status = service.status
+        previous_estimated_cost = service.estimated_cost
+        previous_final_cost = service.final_cost
+        with transaction.atomic():
+            service = serializer.save()
+            if previous_status != service.status:
+                log_audit_event(
+                    action="service_request.status_changed",
+                    entry_type="Service",
+                    entity_id=service.service_id,
+                    user=request.user,
+                    description=f"Service request status changed from {previous_status} to {service.status}.",
+                    request=request,
+                )
+            changed_costs = []
+            if previous_estimated_cost != service.estimated_cost:
+                changed_costs.append("estimated cost")
+            if previous_final_cost != service.final_cost:
+                changed_costs.append("final cost")
+            if changed_costs:
+                log_audit_event(
+                    action="service_request.costs_changed",
+                    entry_type="Service",
+                    entity_id=service.service_id,
+                    user=request.user,
+                    description=f"Updated: {', '.join(changed_costs)}.",
+                    request=request,
+                )
         return Response(ServiceSerializer(service).data, status=status.HTTP_200_OK)

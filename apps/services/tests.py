@@ -4,6 +4,7 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 
 from apps.accounts.models import Role
+from apps.audit.models import AuditLog
 
 from .models import Service, ServiceStatus, ServiceType
 
@@ -74,6 +75,14 @@ class ServiceApiTests(APITestCase):
         self.assertEqual(response.data["user_id"], self.customer.user_id)
         self.assertIsNone(response.data["estimated_cost"])
         self.assertIsNone(response.data["final_cost"])
+        self.assertTrue(
+            AuditLog.objects.filter(
+                action="service_request.created",
+                entry_type="Service",
+                entity_id=response.data["service_id"],
+                user=self.customer,
+            ).exists()
+        )
 
     def test_customer_cannot_set_owner_status_or_costs(self):
         self.client.force_authenticate(self.customer)
@@ -214,6 +223,23 @@ class ServiceApiTests(APITestCase):
         self.assertEqual(completed.data["final_cost"], "70.00")
         service.refresh_from_db()
         self.assertIsNotNone(service.completed_at)
+        self.assertEqual(
+            AuditLog.objects.filter(
+                action="service_request.status_changed",
+                entry_type="Service",
+                entity_id=service.service_id,
+                user=self.admin,
+            ).count(),
+            2,
+        )
+        self.assertTrue(
+            AuditLog.objects.filter(
+                action="service_request.costs_changed",
+                entry_type="Service",
+                entity_id=service.service_id,
+                user=self.admin,
+            ).exists()
+        )
 
     def test_admin_cannot_set_final_cost_before_completion(self):
         service = self.make_service()
