@@ -1,4 +1,5 @@
 from decimal import Decimal
+from uuid import uuid4
 from django.db import transaction
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import extend_schema, OpenApiResponse
@@ -10,6 +11,7 @@ from rest_framework.views import APIView
 
 from apps.accounts.permissions import IsAdminOrSuperAdmin
 from apps.cart.models import CartItem
+from apps.catalog.models import StockMovement
 from apps.catalog.stock_service import (
     StockError,
     deduct_stock,
@@ -80,9 +82,16 @@ class OrderCheckoutView(APIView):
             items_to_deduct = [
                 (item.product_id, item.quantity) for item in cart_items
             ]
+            checkout_reference = uuid4().hex
 
             try:
-                deduct_stock(items_to_deduct)
+                deduct_stock(
+                    items_to_deduct,
+                    source="checkout",
+                    reason="Stock reserved during checkout",
+                    actor=request.user,
+                    reference_id=checkout_reference,
+                )
             except StockError as exc:
                 return Response(
                     {
@@ -108,6 +117,11 @@ class OrderCheckoutView(APIView):
                 phone=phone,
                 total_amount=total_amount,
                 status=OrderStatus.PENDING,
+            )
+            # The order is created after reservation; replace the unique
+            # temporary reference with the resulting order id before commit.
+            StockMovement.objects.filter(reference_id=checkout_reference).update(
+                reference_id=str(order.order_id)
             )
 
             # 4. Create immutable line items snapshot
@@ -248,7 +262,13 @@ class OrderCancelView(APIView):
             items_to_restore = [
                 (item.product_id, item.quantity) for item in order.items.all()
             ]
-            restore_stock(items_to_restore)
+            restore_stock(
+                items_to_restore,
+                source="order_cancellation",
+                reason="Stock restored after order cancellation",
+                actor=request.user,
+                reference_id=order.order_id,
+            )
 
             # 2. Update status
             order.status = OrderStatus.CANCELLED
@@ -329,7 +349,13 @@ class AdminOrderStatusUpdateView(APIView):
                 items_to_restore = [
                     (item.product_id, item.quantity) for item in order.items.all()
                 ]
-                restore_stock(items_to_restore)
+                restore_stock(
+                    items_to_restore,
+                    source="order_cancellation",
+                    reason="Stock restored after admin cancellation",
+                    actor=request.user,
+                    reference_id=order.order_id,
+                )
                 order.status = OrderStatus.CANCELLED
                 order.save(update_fields=["status", "updated_at"])
         else:

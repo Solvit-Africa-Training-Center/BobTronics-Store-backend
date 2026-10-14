@@ -6,7 +6,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 from apps.accounts.models import Role, User
 from apps.cart.models import CartItem
-from apps.catalog.models import Category, Product
+from apps.catalog.models import Category, Product, StockMovement
 from apps.orders.models import Order, OrderItem, OrderStatus
 
 
@@ -104,6 +104,16 @@ class OrderAPITestCase(APITestCase):
         order_id = response.data["data"]["order_id"]
         order = Order.objects.get(order_id=order_id)
         self.assertEqual(order.items.count(), 2)
+        movements = StockMovement.objects.filter(source="checkout", actor=self.customer)
+        self.assertEqual(movements.count(), 2)
+        self.assertSetEqual(
+            set(movements.values_list("reference_id", flat=True)),
+            {str(order_id)},
+        )
+        self.assertSetEqual(
+            set(movements.values_list("quantity_change", flat=True)),
+            {-2, -1},
+        )
 
     def test_checkout_uses_default_profile_address_when_omitted(self):
         CartItem.objects.create(user=self.customer, product=self.headphone, quantity=1)
@@ -198,6 +208,15 @@ class OrderAPITestCase(APITestCase):
         # Stock restored: 10 + 3 = 13
         self.headphone.refresh_from_db()
         self.assertEqual(self.headphone.stock_quantity, 13)
+
+        # The restoration is traceable to the cancelled order.
+        movement = StockMovement.objects.get(
+            product=self.headphone,
+            source="order_cancellation",
+            reference_id=str(order.order_id),
+        )
+        self.assertEqual(movement.quantity_change, 3)
+        self.assertEqual(movement.actor, self.customer)
 
     def test_cannot_cancel_shipped_order(self):
         order = Order.objects.create(

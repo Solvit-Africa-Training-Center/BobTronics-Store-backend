@@ -1,3 +1,4 @@
+from django.db import transaction
 from django.urls import reverse
 from rest_framework import status
 
@@ -10,6 +11,7 @@ from .stock_service import (
     deduct_stock,
     restore_stock,
 )
+from .models import StockMovement, StockMovementType
 from .tests import CatalogTestBase
 
 
@@ -29,6 +31,21 @@ class StockServiceTests(CatalogTestBase):
         levels = deduct_stock([(self.phone.pk, 3)])
         self.assertEqual(self.stock_of(self.phone), 7)
         self.assertEqual(levels, {self.phone.pk: 7})
+
+    def test_deduct_records_signed_change_and_context(self):
+        deduct_stock(
+            [(self.phone.pk, 3)],
+            source="checkout",
+            reason="Stock reserved during checkout",
+            actor=self.customer,
+        )
+        movement = StockMovement.objects.get(product=self.phone)
+        self.assertEqual(movement.movement_type, StockMovementType.DEDUCTION)
+        self.assertEqual(movement.quantity_change, -3)
+        self.assertEqual(movement.quantity_before, 10)
+        self.assertEqual(movement.quantity_after, 7)
+        self.assertEqual(movement.source, "checkout")
+        self.assertEqual(movement.actor, self.customer)
 
     def test_deduct_merges_repeated_lines(self):
         deduct_stock([(self.phone.pk, 2), (self.phone.pk, 3)])
@@ -50,6 +67,15 @@ class StockServiceTests(CatalogTestBase):
         with self.assertRaises(InsufficientStockError):
             deduct_stock([(self.phone.pk, 2), (self.laptop.pk, 1)])
         self.assertEqual(self.stock_of(self.phone), 10)
+        self.assertFalse(StockMovement.objects.exists())
+
+    def test_movement_and_stock_roll_back_with_outer_transaction(self):
+        with self.assertRaises(RuntimeError):
+            with transaction.atomic():
+                deduct_stock([(self.phone.pk, 2)], source="checkout")
+                raise RuntimeError("roll back the order")
+        self.assertEqual(self.stock_of(self.phone), 10)
+        self.assertFalse(StockMovement.objects.exists())
 
     def test_deduct_unavailable_product_fails(self):
         with self.assertRaises(ProductUnavailableError):
@@ -87,6 +113,21 @@ class StockServiceTests(CatalogTestBase):
         levels = restore_stock([(self.phone.pk, 4)])
         self.assertEqual(self.stock_of(self.phone), 10)
         self.assertEqual(levels, {self.phone.pk: 10})
+
+    def test_restore_records_reference_and_before_after_levels(self):
+        restore_stock(
+            [(self.phone.pk, 2)],
+            source="order_cancellation",
+            reason="Cancelled order",
+            actor=self.customer,
+            reference_id=123,
+        )
+        movement = StockMovement.objects.get(product=self.phone)
+        self.assertEqual(movement.movement_type, StockMovementType.RESTORATION)
+        self.assertEqual(movement.quantity_change, 2)
+        self.assertEqual(movement.quantity_before, 10)
+        self.assertEqual(movement.quantity_after, 12)
+        self.assertEqual(movement.reference_id, "123")
 
     def test_restore_works_on_unavailable_products(self):
         restore_stock([(self.hidden.pk, 5)])
@@ -129,6 +170,11 @@ class StockAdjustmentApiTests(CatalogTestBase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["stock_quantity"], 15)
         self.assertEqual(self.stock_of(self.phone), 15)
+        movement = StockMovement.objects.get(product=self.phone)
+        self.assertEqual(movement.movement_type, StockMovementType.ADJUSTMENT)
+        self.assertEqual(movement.quantity_change, 5)
+        self.assertEqual(movement.source, "inventory_adjustment")
+        self.assertEqual(movement.actor, self.admin)
 
     def test_admin_can_remove_stock(self):
         self.client.force_authenticate(self.admin)
@@ -139,6 +185,10 @@ class StockAdjustmentApiTests(CatalogTestBase):
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(self.stock_of(self.phone), 6)
+        movement = StockMovement.objects.get(product=self.phone)
+        self.assertEqual(movement.quantity_change, -4)
+        self.assertEqual(movement.reason, "Damaged in storage")
+        self.assertEqual(movement.movement_type, StockMovementType.ADJUSTMENT)
 
     def test_removing_more_than_available_is_a_conflict(self):
         self.client.force_authenticate(self.admin)
