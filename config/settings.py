@@ -44,13 +44,30 @@ DATABASES = {"default": {
     "USER": config("DB_USER", default=""), "PASSWORD": config("DB_PASSWORD", default=""),
     "HOST": config("DB_HOST", default=""), "PORT": config("DB_PORT", default=""),
 }}
-REDIS_URL = config("REDIS_URL", default="redis://127.0.0.1:6379/1")
-CACHES = {
-    "default": {
-        "BACKEND": "django.core.cache.backends.redis.RedisCache",
-        "LOCATION": REDIS_URL,
+REDIS_URL = config("REDIS_URL", default="")
+if REDIS_URL:
+    try:
+        import redis  # noqa: F401
+        CACHES = {
+            "default": {
+                "BACKEND": "django.core.cache.backends.redis.RedisCache",
+                "LOCATION": REDIS_URL,
+            }
+        }
+    except ImportError:
+        CACHES = {
+            "default": {
+                "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+                "LOCATION": "bobtronics-cache",
+            }
+        }
+else:
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": "bobtronics-cache",
+        }
     }
-}
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
