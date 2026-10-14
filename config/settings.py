@@ -6,7 +6,7 @@ from decouple import config
 BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = config("SECRET_KEY")
 DEBUG = config("DEBUG", default=False, cast=bool)
-ALLOWED_HOSTS = [host.strip() for host in config("ALLOWED_HOSTS", default="*").split(",") if host.strip()]
+ALLOWED_HOSTS = ["*"]
 
 INSTALLED_APPS = [
     "django.contrib.admin", "django.contrib.auth", "django.contrib.contenttypes",
@@ -33,7 +33,9 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-# CORS Settings
+# CORS & CSRF Settings
+from corsheaders.defaults import default_headers
+
 CORS_ALLOW_ALL_ORIGINS = config("CORS_ALLOW_ALL_ORIGINS", default=DEBUG, cast=bool)
 CORS_ALLOWED_ORIGINS = [
     origin.strip()
@@ -44,6 +46,18 @@ CORS_ALLOWED_ORIGINS = [
     if origin.strip()
 ]
 CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_HEADERS = list(default_headers) + [
+    "ngrok-skip-browser-warning",
+]
+
+CSRF_TRUSTED_ORIGINS = [
+    origin.strip()
+    for origin in config(
+        "CSRF_TRUSTED_ORIGINS",
+        default="http://localhost:3000,http://127.0.0.1:3000,http://localhost:5173,http://127.0.0.1:5173,https://*.ngrok-free.app,https://*.ngrok-free.dev,https://*.ngrok.io,https://*.ngrok.app",
+    ).split(",")
+    if origin.strip()
+]
 ROOT_URLCONF = "config.urls"
 TEMPLATES = [{
     "BACKEND": "django.template.backends.django.DjangoTemplates", "DIRS": [], "APP_DIRS": True,
