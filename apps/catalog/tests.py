@@ -303,6 +303,16 @@ class ProductValidationTests(CatalogTestBase):
     def setUp(self):
         self.client.force_authenticate(self.admin)
 
+    def _extract_errors(self, response):
+        """Unpack error details from response envelope or raw dictionary."""
+        data = response.data
+        if isinstance(data, dict):
+            if "error" in data and isinstance(data["error"], dict) and "details" in data["error"]:
+                return data["error"]["details"]
+            if "details" in data:
+                return data["details"]
+        return data
+
     def product_payload(self, **overrides):
         data = {
             "category": self.laptops.pk,
@@ -354,7 +364,7 @@ class ProductValidationTests(CatalogTestBase):
             format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("price", response.data)
+        self.assertIn("price", self._extract_errors(response))
 
     def test_negative_price_is_rejected(self):
         response = self.client.post(
@@ -371,7 +381,7 @@ class ProductValidationTests(CatalogTestBase):
             format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("stock_quantity", response.data)
+        self.assertIn("stock_quantity", self._extract_errors(response))
 
     def test_absurd_stock_is_rejected(self):
         response = self.client.post(
@@ -390,7 +400,7 @@ class ProductValidationTests(CatalogTestBase):
             format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("name", response.data)
+        self.assertIn("name", self._extract_errors(response))
 
     def test_same_name_in_another_category_is_allowed(self):
         response = self.client.post(
@@ -425,7 +435,7 @@ class ProductValidationTests(CatalogTestBase):
             format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("image_url", response.data)
+        self.assertIn("image_url", self._extract_errors(response))
 
     def test_duplicate_image_url_is_rejected(self):
         response = self.client.post(
@@ -478,4 +488,4 @@ class ProductValidationTests(CatalogTestBase):
             format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("product", response.data)
+        self.assertIn("product", self._extract_errors(response))
