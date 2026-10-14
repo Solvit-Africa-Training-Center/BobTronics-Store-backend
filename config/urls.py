@@ -2,6 +2,7 @@
 
 from django.contrib import admin
 from django.urls import include, path
+from django.views.generic import RedirectView
 from drf_spectacular.utils import extend_schema
 from drf_spectacular.views import (
     SpectacularAPIView,
@@ -39,6 +40,11 @@ def health_check(request):
 
 
 urlpatterns = [
+    # Convenient redirects to interactive API documentation
+    path("", RedirectView.as_view(url="/api/v1/docs/", permanent=False), name="root-docs-redirect"),
+    path("docs/", RedirectView.as_view(url="/api/v1/docs/", permanent=False), name="docs-redirect"),
+    path("api/docs/", RedirectView.as_view(url="/api/v1/docs/", permanent=False), name="api-docs-redirect"),
+
     path("admin/", admin.site.urls),
 
     # Health check
