@@ -37,6 +37,12 @@ class Feedback(models.Model):
         indexes = [
             models.Index(fields=["product", "rating"], name="idx_feedback_prod_rating"),
         ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "product"],
+                name="unique_feedback_user_product",
+            ),
+        ]
 
     def __str__(self):
         return f"{self.user.email} - {self.product.name} ({self.rating}/5)"
