@@ -64,6 +64,9 @@ urlpatterns = [
     # Customer Profile & Address API
     path("api/v1/customers/", include("apps.accounts.customer_urls")),
 
+    # Customer service requests and admin service management
+    path("api/v1/services/", include("apps.services.urls")),
+
     # Catalog API (public read-only + admin management)
     path("api/v1/catalog/", include("apps.catalog.urls")),
 
