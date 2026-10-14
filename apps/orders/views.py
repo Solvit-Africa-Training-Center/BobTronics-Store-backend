@@ -58,6 +58,7 @@ class OrderCheckoutView(APIView):
 
         shipping_address = serializer.validated_data["shipping_address"]
         phone = serializer.validated_data["phone"]
+        delivery_method = serializer.validated_data.get("delivery_method", "standard")
 
         with transaction.atomic():
             cart_items = list(
@@ -138,13 +139,21 @@ class OrderCheckoutView(APIView):
             ]
             OrderItem.objects.bulk_create(order_items)
 
-            # 5. Clear cart
+            # 5. Initialize Delivery tracking record
+            from apps.deliveries.services import create_delivery_for_order
+            create_delivery_for_order(
+                order=order,
+                delivery_address=shipping_address,
+                delivery_method=delivery_method,
+            )
+
+            # 6. Clear cart
             CartItem.objects.filter(user=request.user).delete()
 
         # Reload with prefetched relationships
         order = (
             Order.objects.prefetch_related("items__product__category")
-            .select_related("user")
+            .select_related("user", "delivery")
             .get(pk=order.pk)
         )
 
