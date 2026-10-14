@@ -1,6 +1,7 @@
 from decimal import Decimal
 from django.core.validators import MinValueValidator
 from django.db import models
+from django.db.models import Q
 
 
 class DiscountType(models.TextChoices):
@@ -44,6 +45,11 @@ class Discount(models.Model):
         indexes = [
             models.Index(fields=["product", "is_active"], name="idx_disc_prod_active"),
             models.Index(fields=["start_date", "end_date"], name="idx_disc_dates"),
+        ]
+        constraints = [
+            models.CheckConstraint(condition=Q(discount_value__gt=Decimal("0.00")), name="discount_value_positive"),
+            models.CheckConstraint(condition=(~Q(discount_type=DiscountType.PERCENTAGE) | Q(discount_value__lte=Decimal("100.00"))), name="discount_percentage_lte_100"),
+            models.CheckConstraint(condition=Q(end_date__gte=models.F("start_date")), name="discount_end_after_start"),
         ]
 
     def __str__(self):

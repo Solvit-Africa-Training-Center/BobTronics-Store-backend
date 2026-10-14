@@ -70,6 +70,9 @@ urlpatterns = [
     # Orders & Checkout API
     path("api/v1/orders/", include("apps.orders.urls")),
 
+    # Product feedback (verified delivered purchases)
+    path("api/v1/reviews/", include("apps.reviews.urls")),
+
     # OpenAPI Schema & Interactive Documentation
     path(
         "api/v1/schema/",

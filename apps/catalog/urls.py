@@ -21,4 +21,5 @@ router.register("admin/images", ProductImageAdminViewSet, basename="admin-image"
 
 urlpatterns = [
     path("", include(router.urls)),
+    path("", include("apps.promotions.urls")),
 ]
