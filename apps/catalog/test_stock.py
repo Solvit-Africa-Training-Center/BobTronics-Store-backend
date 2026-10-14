@@ -9,6 +9,7 @@ from .stock_service import (
     ProductUnavailableError,
     check_stock,
     deduct_stock,
+    low_stock_products,
     restore_stock,
 )
 from .models import StockMovement, StockMovementType
@@ -154,6 +155,55 @@ class StockServiceTests(CatalogTestBase):
     def test_check_stock_fails_for_unavailable(self):
         with self.assertRaises(ProductUnavailableError):
             check_stock([(self.hidden.pk, 1)])
+
+    def test_low_stock_products_includes_products_at_threshold_and_hidden_products(self):
+        products = list(low_stock_products(5))
+        self.assertEqual(products, [self.laptop, self.hidden])
+
+    def test_low_stock_products_zero_threshold_returns_out_of_stock_only(self):
+        self.assertEqual(list(low_stock_products(0)), [self.laptop])
+
+    def test_low_stock_products_rejects_invalid_thresholds(self):
+        for threshold in (-1, True, 1.5, "1"):
+            with self.subTest(threshold=threshold):
+                with self.assertRaises(ValueError):
+                    low_stock_products(threshold)
+
+
+class LowStockApiTests(CatalogTestBase):
+    def url(self):
+        return reverse("admin-product-low-stock")
+
+    def test_admin_can_list_products_at_or_below_threshold(self):
+        self.client.force_authenticate(self.admin)
+        response = self.client.get(self.url(), {"threshold": 5})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        names = [item["name"] for item in response.data["results"]]
+        self.assertEqual(names, ["ThinkBook 14", "Old Phone"])
+
+    def test_threshold_is_required(self):
+        self.client.force_authenticate(self.admin)
+        response = self.client.get(self.url())
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_negative_or_non_integer_threshold_is_rejected(self):
+        self.client.force_authenticate(self.admin)
+        for threshold in ("-1", "abc", "1.5"):
+            with self.subTest(threshold=threshold):
+                response = self.client.get(self.url(), {"threshold": threshold})
+                self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_customer_is_forbidden(self):
+        self.client.force_authenticate(self.customer)
+        response = self.client.get(self.url(), {"threshold": 5})
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_anonymous_is_rejected(self):
+        response = self.client.get(self.url(), {"threshold": 5})
+        self.assertIn(
+            response.status_code,
+            (status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN),
+        )
 
 
 class StockAdjustmentApiTests(CatalogTestBase):

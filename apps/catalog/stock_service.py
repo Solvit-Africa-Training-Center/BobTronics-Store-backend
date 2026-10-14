@@ -136,6 +136,18 @@ def check_stock(items, *, require_available=True):
     _validate(products, wanted, require_available)
 
 
+def low_stock_products(threshold):
+    """Return products at or below a caller-selected stock threshold."""
+    if isinstance(threshold, bool) or not isinstance(threshold, int) or threshold < 0:
+        raise ValueError("threshold must be a non-negative integer.")
+    return (
+        Product.objects.filter(stock_quantity__lte=threshold)
+        .select_related("category")
+        .prefetch_related("images")
+        .order_by("stock_quantity", "name")
+    )
+
+
 @transaction.atomic
 def deduct_stock(
     items,

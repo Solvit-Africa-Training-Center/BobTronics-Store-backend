@@ -3,6 +3,14 @@ from rest_framework import serializers
 from .serializers import MAX_STOCK_QUANTITY
 
 
+class LowStockQuerySerializer(serializers.Serializer):
+    threshold = serializers.IntegerField(
+        min_value=0,
+        required=True,
+        help_text="Required minimum stock threshold; products at or below it are returned.",
+    )
+
+
 class StockAdjustmentSerializer(serializers.Serializer):
     delta = serializers.IntegerField(
         help_text=(

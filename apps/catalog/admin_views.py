@@ -19,8 +19,8 @@ from .serializers import (
     ProductImageSerializer,
     ProductSerializer,
 )
-from .stock_serializers import StockAdjustmentSerializer
-from .stock_service import StockError, deduct_stock, restore_stock
+from .stock_serializers import LowStockQuerySerializer, StockAdjustmentSerializer
+from .stock_service import StockError, deduct_stock, low_stock_products, restore_stock
 
 logger = logging.getLogger(__name__)
 
@@ -80,6 +80,7 @@ class ProductAdminViewSet(ProtectedDeleteMixin, viewsets.ModelViewSet):
     PATCH  /api/v1/catalog/admin/products/{id}/
     DELETE /api/v1/catalog/admin/products/{id}/
     POST   /api/v1/catalog/admin/products/{id}/adjust-stock/
+    GET    /api/v1/catalog/admin/products/low-stock/?threshold=N
     """
 
     queryset = (
@@ -99,6 +100,24 @@ class ProductAdminViewSet(ProtectedDeleteMixin, viewsets.ModelViewSet):
     filterset_class = ProductFilter
     search_fields = ["name", "brand", "description", "category__name"]
     ordering_fields = ["price", "name", "stock_quantity", "created_at"]
+
+    @extend_schema(
+        parameters=[LowStockQuerySerializer],
+        responses=ProductSerializer(many=True),
+        description=(
+            "List all products, including unavailable products, whose stock "
+            "is at or below the required non-negative threshold."
+        ),
+    )
+    @action(detail=False, methods=["get"], url_path="low-stock")
+    def low_stock(self, request):
+        serializer = LowStockQuerySerializer(data=request.query_params)
+        serializer.is_valid(raise_exception=True)
+        products = low_stock_products(serializer.validated_data["threshold"])
+        page = self.paginate_queryset(products)
+        if page is not None:
+            return self.get_paginated_response(ProductSerializer(page, many=True).data)
+        return Response(ProductSerializer(products, many=True).data)
 
     @extend_schema(
         request=StockAdjustmentSerializer,
