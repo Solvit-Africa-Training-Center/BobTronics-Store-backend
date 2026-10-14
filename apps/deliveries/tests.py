@@ -5,6 +5,7 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 
 from apps.accounts.models import Role
+from apps.audit.models import AuditLog
 from apps.cart.models import CartItem
 from apps.catalog.models import Category, Product
 from apps.deliveries.models import Delivery, DeliveryMethod, DeliveryStatus
@@ -176,6 +177,22 @@ class DeliveryApiTests(APITestCase):
         # Linked order moves to SHIPPED
         self.order.refresh_from_db()
         self.assertEqual(self.order.status, OrderStatus.SHIPPED)
+        self.assertTrue(
+            AuditLog.objects.filter(
+                action="delivery.status_changed",
+                entry_type="Delivery",
+                entity_id=self.delivery.delivery_id,
+                user=self.admin,
+            ).exists()
+        )
+        self.assertTrue(
+            AuditLog.objects.filter(
+                action="order.status_changed",
+                entry_type="Order",
+                entity_id=self.order.order_id,
+                user=self.admin,
+            ).exists()
+        )
 
     def test_admin_update_delivery_status_to_delivered(self):
         self.client.force_authenticate(self.admin)

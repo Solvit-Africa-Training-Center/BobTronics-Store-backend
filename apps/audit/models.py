@@ -17,7 +17,7 @@ class AuditLog(models.Model):
         db_index=True,
     )
     action = models.CharField(max_length=100, db_index=True)
-    entity_type = models.CharField(max_length=100, db_index=True)
+    entry_type = models.CharField(max_length=100, db_index=True)
     entity_id = models.PositiveIntegerField(null=True, blank=True, db_index=True)
     description = models.TextField(blank=True)
     ip_address = models.GenericIPAddressField(null=True, blank=True)
@@ -29,10 +29,10 @@ class AuditLog(models.Model):
         verbose_name_plural = "Audit Logs"
         ordering = ["-created_at"]
         indexes = [
-            models.Index(fields=["entity_type", "entity_id"], name="idx_audit_entity"),
+            models.Index(fields=["entry_type", "entity_id"], name="idx_audit_entity"),
             models.Index(fields=["user", "action"], name="idx_audit_user_action"),
         ]
 
     def __str__(self):
         user_str = self.user.email if self.user else "Anonymous/System"
-        return f"[{self.created_at.strftime('%Y-%m-%d %H:%M')}] {user_str}: {self.action} on {self.entity_type} #{self.entity_id}"
+        return f"[{self.created_at.strftime('%Y-%m-%d %H:%M')}] {user_str}: {self.action} on {self.entry_type} #{self.entity_id}"

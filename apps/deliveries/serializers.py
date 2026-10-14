@@ -3,6 +3,7 @@ from django.utils import timezone
 from rest_framework import serializers
 
 from apps.orders.models import OrderStatus
+from apps.audit.services import log_audit_event
 from .models import Delivery, DeliveryMethod, DeliveryStatus
 
 
@@ -111,6 +112,8 @@ class DeliveryStatusUpdateSerializer(serializers.Serializer):
 
     def save(self, **kwargs):
         delivery = self.context["delivery"]
+        previous_delivery_status = delivery.status
+        previous_order_status = delivery.order.status
         new_status = self.validated_data["status"]
         now = timezone.now()
 
@@ -136,4 +139,24 @@ class DeliveryStatusUpdateSerializer(serializers.Serializer):
                 delivery.order.save(update_fields=["status", "updated_at"])
 
         delivery.save()
+        request = self.context.get("request")
+        actor = request.user if request is not None else None
+        if previous_delivery_status != delivery.status:
+            log_audit_event(
+                action="delivery.status_changed",
+                entry_type="Delivery",
+                entity_id=delivery.delivery_id,
+                user=actor,
+                description=f"Delivery status changed from {previous_delivery_status} to {delivery.status}.",
+                request=request,
+            )
+        if previous_order_status != delivery.order.status:
+            log_audit_event(
+                action="order.status_changed",
+                entry_type="Order",
+                entity_id=delivery.order.order_id,
+                user=actor,
+                description=f"Order status changed from {previous_order_status} to {delivery.order.status} by delivery tracking update.",
+                request=request,
+            )
         return delivery

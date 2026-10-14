@@ -9,6 +9,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.audit.services import log_audit_event
 from apps.accounts.permissions import IsAdminOrSuperAdmin
 from apps.cart.models import CartItem
 from apps.catalog.models import StockMovement
@@ -118,6 +119,14 @@ class OrderCheckoutView(APIView):
                 phone=phone,
                 total_amount=total_amount,
                 status=OrderStatus.PENDING,
+            )
+            log_audit_event(
+                action="order.created",
+                entry_type="Order",
+                entity_id=order.order_id,
+                user=request.user,
+                description=f"Order created with status {order.status}.",
+                request=request,
             )
             # The order is created after reservation; replace the unique
             # temporary reference with the resulting order id before commit.
@@ -266,6 +275,7 @@ class OrderCancelView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        previous_status = order.status
         with transaction.atomic():
             # 1. Restore stock
             items_to_restore = [
@@ -282,6 +292,14 @@ class OrderCancelView(APIView):
             # 2. Update status
             order.status = OrderStatus.CANCELLED
             order.save(update_fields=["status", "updated_at"])
+            log_audit_event(
+                action="order.status_changed",
+                entry_type="Order",
+                entity_id=order.order_id,
+                user=request.user,
+                description=f"Order status changed from {previous_status} to cancelled.",
+                request=request,
+            )
 
         return Response(
             {
@@ -351,10 +369,11 @@ class AdminOrderStatusUpdateView(APIView):
         serializer.is_valid(raise_exception=True)
 
         new_status = serializer.validated_data["status"]
+        previous_status = order.status
 
-        # If transitioning to CANCELLED from non-cancelled status, restore stock
-        if new_status == OrderStatus.CANCELLED and order.status != OrderStatus.CANCELLED:
-            with transaction.atomic():
+        with transaction.atomic():
+            # If transitioning to CANCELLED from non-cancelled status, restore stock
+            if new_status == OrderStatus.CANCELLED and previous_status != OrderStatus.CANCELLED:
                 items_to_restore = [
                     (item.product_id, item.quantity) for item in order.items.all()
                 ]
@@ -365,11 +384,17 @@ class AdminOrderStatusUpdateView(APIView):
                     actor=request.user,
                     reference_id=order.order_id,
                 )
-                order.status = OrderStatus.CANCELLED
-                order.save(update_fields=["status", "updated_at"])
-        else:
             order.status = new_status
             order.save(update_fields=["status", "updated_at"])
+            if previous_status != new_status:
+                log_audit_event(
+                    action="order.status_changed",
+                    entry_type="Order",
+                    entity_id=order.order_id,
+                    user=request.user,
+                    description=f"Order status changed from {previous_status} to {new_status}.",
+                    request=request,
+                )
 
         return Response(
             {
