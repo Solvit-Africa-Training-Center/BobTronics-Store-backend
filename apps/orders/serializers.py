@@ -42,6 +42,7 @@ class OrderSerializer(serializers.ModelSerializer):
     """Complete order representation including line items."""
 
     items = OrderItemSerializer(many=True, read_only=True)
+    delivery = serializers.SerializerMethodField()
     status_display = serializers.CharField(source="get_status_display", read_only=True)
     customer_email = serializers.EmailField(source="user.email", read_only=True)
     customer_name = serializers.SerializerMethodField()
@@ -59,6 +60,7 @@ class OrderSerializer(serializers.ModelSerializer):
             "shipping_address",
             "phone",
             "items",
+            "delivery",
             "created_at",
             "updated_at",
         ]
@@ -71,12 +73,29 @@ class OrderSerializer(serializers.ModelSerializer):
             "status_display",
             "total_amount",
             "items",
+            "delivery",
             "created_at",
             "updated_at",
         ]
 
     def get_customer_name(self, obj) -> str:
         return f"{obj.user.first_name} {obj.user.last_name}".strip()
+
+    def get_delivery(self, obj):
+        delivery = getattr(obj, "delivery", None)
+        if not delivery:
+            return None
+        return {
+            "delivery_id": delivery.delivery_id,
+            "status": delivery.status,
+            "status_display": delivery.get_status_display(),
+            "delivery_method": delivery.delivery_method,
+            "delivery_method_display": delivery.get_delivery_method_display(),
+            "tracking_number": delivery.tracking_number,
+            "shipping_fee": str(delivery.shipping_fee),
+            "shipped_at": delivery.shipped_at,
+            "delivered_at": delivery.delivered_at,
+        }
 
 
 class OrderListSerializer(serializers.ModelSerializer):
@@ -120,6 +139,12 @@ class OrderCheckoutSerializer(serializers.Serializer):
         allow_blank=False,
         max_length=30,
         help_text="Contact phone number for delivery. Defaults to saved profile phone if omitted.",
+    )
+    delivery_method = serializers.ChoiceField(
+        choices=["standard", "express", "store_pickup"],
+        default="standard",
+        required=False,
+        help_text="Selected fulfillment option: standard, express, or store_pickup.",
     )
 
     def validate(self, attrs):
