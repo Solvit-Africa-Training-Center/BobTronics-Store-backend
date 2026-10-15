@@ -106,11 +106,24 @@ class OrderCheckoutView(APIView):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            # 2. Calculate totals using product price snapshot
-            total_amount = sum(
-                (item.product.price * item.quantity for item in cart_items),
-                Decimal("0.00"),
-            )
+            # 2. Calculate totals using product price snapshot and active promotions
+            from apps.promotions.services import calculate_discount
+
+            order_items_data = []
+            total_amount = Decimal("0.00")
+            for item in cart_items:
+                unit_price = item.product.price
+                unit_discount = calculate_discount(item.product)
+                item_discount = (unit_discount * item.quantity).quantize(Decimal("0.01"))
+                item_subtotal = (unit_price * item.quantity) - item_discount
+                total_amount += item_subtotal
+                order_items_data.append({
+                    "product": item.product,
+                    "quantity": item.quantity,
+                    "unit_price": unit_price,
+                    "discount_amount": item_discount,
+                    "subtotal": item_subtotal,
+                })
 
             # 3. Create the Order record
             order = Order.objects.create(
@@ -134,17 +147,17 @@ class OrderCheckoutView(APIView):
                 reference_id=str(order.order_id)
             )
 
-            # 4. Create immutable line items snapshot
+            # 4. Create immutable line items snapshot with discounts
             order_items = [
                 OrderItem(
                     order=order,
-                    product=item.product,
-                    quantity=item.quantity,
-                    unit_price=item.product.price,
-                    discount_amount=Decimal("0.00"),
-                    subtotal=(item.product.price * item.quantity),
+                    product=data["product"],
+                    quantity=data["quantity"],
+                    unit_price=data["unit_price"],
+                    discount_amount=data["discount_amount"],
+                    subtotal=data["subtotal"],
                 )
-                for item in cart_items
+                for data in order_items_data
             ]
             OrderItem.objects.bulk_create(order_items)
 

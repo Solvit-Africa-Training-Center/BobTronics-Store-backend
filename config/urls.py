@@ -85,6 +85,9 @@ urlpatterns = [
     # Product feedback (verified delivered purchases)
     path("api/v1/reviews/", include("apps.reviews.urls")),
 
+    # Promotional discounts & special offers API
+    path("api/v1/promotions/", include("apps.promotions.urls")),
+
     # OpenAPI Schema & Interactive Documentation
     path(
         "api/v1/schema/",
