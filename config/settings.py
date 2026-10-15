@@ -2,7 +2,10 @@
 from datetime import timedelta
 from pathlib import Path
 from decouple import config
-import dj_database_url
+try:
+    import dj_database_url
+except ImportError:
+    dj_database_url = None
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 DEBUG = config("DEBUG", default=False, cast=bool)
@@ -89,6 +92,8 @@ AUTH_USER_MODEL = "accounts.User"
 
 DATABASE_URL = config("DATABASE_URL", default="").strip()
 if DATABASE_URL:
+    if dj_database_url is None:
+        raise RuntimeError("dj-database-url is required to parse DATABASE_URL.")
     DATABASES = {
         "default": dj_database_url.parse(
             DATABASE_URL,
