@@ -20,9 +20,9 @@ class FeedbackSerializer(serializers.ModelSerializer):
         if user is None or product is None:
             return attrs
         if Feedback.objects.filter(user=user, product=product).exists():
-            raise serializers.ValidationError({"product": "You have already left feedback for this product."})
+            raise serializers.ValidationError({"product": "You already reviewed this product."})
         if not user.orders.filter(status=OrderStatus.DELIVERED, items__product=product).exists():
-            raise serializers.ValidationError({"product": "Feedback is available after this product is delivered to you."})
+            raise serializers.ValidationError({"product": "Review this product after delivery."})
         return attrs
 
     def create(self, validated_data):

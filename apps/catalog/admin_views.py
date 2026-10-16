@@ -36,12 +36,15 @@ class ProtectedDeleteMixin:
         try:
             return super().destroy(request, *args, **kwargs)
         except ProtectedError:
+            message = "This item is in use and can't be deleted."
             return Response(
                 {
-                    "detail": (
-                        "This item cannot be deleted because other records "
-                        "depend on it. Deactivate it instead."
-                    )
+                    "success": False,
+                    "error": {
+                        "status_code": status.HTTP_409_CONFLICT,
+                        "message": message,
+                        "details": {"detail": message},
+                    },
                 },
                 status=status.HTTP_409_CONFLICT,
             )
@@ -122,8 +125,7 @@ class ProductAdminViewSet(ProtectedDeleteMixin, viewsets.ModelViewSet):
             raise serializers.ValidationError(
                 {
                     "delta": (
-                        f"Stock cannot exceed {MAX_STOCK_QUANTITY} units "
-                        f"(currently {product.stock_quantity})."
+                        f"Stock change exceeds the {MAX_STOCK_QUANTITY} unit limit."
                     )
                 }
             )

@@ -19,9 +19,9 @@ class StockAdjustmentSerializer(serializers.Serializer):
 
     def validate_delta(self, value):
         if value == 0:
-            raise serializers.ValidationError("Delta cannot be zero.")
+            raise serializers.ValidationError("Enter a non-zero stock change.")
         if abs(value) > MAX_STOCK_QUANTITY:
             raise serializers.ValidationError(
-                f"Delta cannot be larger than {MAX_STOCK_QUANTITY}."
+                f"Stock change cannot exceed {MAX_STOCK_QUANTITY} units."
             )
         return value

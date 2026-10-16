@@ -46,7 +46,7 @@ class LoginView(generics.GenericAPIView):
         serializer.is_valid(raise_exception=True)
         user = serializer.validated_data["user"]
         return Response({
-            "message": "Login successful.",
+            "message": "Logged in.",
             "user": UserProfileSerializer(user).data,
             "tokens": serializer.validated_data["tokens"],
         }, status=status.HTTP_200_OK)
@@ -89,7 +89,7 @@ class RegisterView(generics.GenericAPIView):
     responses={200: MessageSerializer, 400: ERROR_RESPONSE},
     examples=[
         OpenApiExample("Activation request", request_only=True, value={"uid": "MTI", "token": "token-from-email"}),
-        OpenApiExample("Activation response", response_only=True, status_codes=[200], value={"message": "Account activated successfully."}),
+        OpenApiExample("Activation response", response_only=True, status_codes=[200], value={"message": "Account activated."}),
     ],
 ))
 class ActivateView(generics.GenericAPIView):
@@ -100,7 +100,7 @@ class ActivateView(generics.GenericAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         serializer.save()
-        return Response({"message": "Account activated successfully."})
+        return Response({"message": "Account activated."})
 
 
 @extend_schema_view(get=extend_schema(
@@ -151,7 +151,7 @@ class PasswordResetRequestView(generics.GenericAPIView):
             "uid": "MTI", "token": "token-from-email", "new_password": "A-new-strong-password-57!",
             "password_confirm": "A-new-strong-password-57!",
         }),
-        OpenApiExample("Password reset response", response_only=True, status_codes=[200], value={"message": "Password has been reset successfully."}),
+        OpenApiExample("Password reset response", response_only=True, status_codes=[200], value={"message": "Password reset successfully."}),
     ],
 ))
 class PasswordResetConfirmView(generics.GenericAPIView):
@@ -171,7 +171,7 @@ class PasswordResetConfirmView(generics.GenericAPIView):
     responses={200: MessageSerializer, 400: ERROR_RESPONSE},
     examples=[
         OpenApiExample("Logout request", request_only=True, value={"refresh": "refresh-token"}),
-        OpenApiExample("Logout response", response_only=True, status_codes=[200], value={"message": "Logout successful."}),
+        OpenApiExample("Logout response", response_only=True, status_codes=[200], value={"message": "Logged out."}),
     ],
 ))
 class LogoutView(generics.GenericAPIView):

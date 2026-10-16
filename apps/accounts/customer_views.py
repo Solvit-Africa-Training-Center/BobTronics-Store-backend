@@ -92,7 +92,7 @@ class CustomerProfileView(generics.RetrieveUpdateAPIView):
         response_serializer = CustomerProfileSerializer(refreshed_user)
         return Response(
             {
-                "message": "Profile updated successfully.",
+                "message": "Profile updated.",
                 "user": response_serializer.data,
             },
             status=status.HTTP_200_OK,
@@ -151,7 +151,7 @@ class CustomerAddressView(generics.RetrieveUpdateAPIView):
         serializer.save()
         return Response(
             {
-                "message": "Delivery address updated successfully.",
+                "message": "Delivery address updated.",
                 "address": serializer.data,
             },
             status=status.HTTP_200_OK,

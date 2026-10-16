@@ -38,14 +38,14 @@ class InvalidQuantityError(StockError):
 class ProductNotFoundError(StockError):
     def __init__(self, product_ids):
         self.product_ids = sorted(product_ids)
-        super().__init__(f"Product(s) not found: {self.product_ids}.")
+        super().__init__("One or more products could not be found.")
 
 
 class ProductUnavailableError(StockError):
     def __init__(self, product_id, name):
         self.product_id = product_id
         self.name = name
-        super().__init__(f"'{name}' is not available for sale.")
+        super().__init__(f"{name} is unavailable.")
 
 
 class InsufficientStockError(StockError):
@@ -55,7 +55,7 @@ class InsufficientStockError(StockError):
         self.requested = requested
         self.available = available
         super().__init__(
-            f"Only {available} unit(s) of '{name}' left, but {requested} requested."
+            f"Only {available} left for {name}; {requested} requested."
         )
 
 
@@ -71,7 +71,7 @@ def _merge_items(items):
         is_whole_number = isinstance(quantity, int) and not isinstance(quantity, bool)
         if not is_whole_number or quantity <= 0:
             raise InvalidQuantityError(
-                f"Quantity for product {product_id} must be a positive whole number."
+                "Quantity must be a positive whole number."
             )
         wanted[product_id] += quantity
 

@@ -16,9 +16,9 @@ class DiscountSerializer(serializers.ModelSerializer):
         end = attrs.get("end_date", getattr(self.instance, "end_date", None))
         errors = {}
         if value is not None and value <= 0:
-            errors["discount_value"] = "Discount value must be greater than zero."
+            errors["discount_value"] = "Discount must be above zero."
         if discount_type == DiscountType.PERCENTAGE and value is not None and value > 100:
-            errors["discount_value"] = "Percentage discount cannot exceed 100."
+            errors["discount_value"] = "Percentage discount cannot exceed 100%."
         if start and end and end < start:
             errors["end_date"] = "End date must be on or after the start date."
         if errors:

@@ -63,7 +63,7 @@ class CartItemAddSerializer(serializers.Serializer):
 
         if not product.is_available:
             raise serializers.ValidationError(
-                {"product_id": f"Product '{product.name}' is currently unavailable."}
+                {"product_id": f"{product.name} is unavailable."}
             )
 
         # Check existing quantity in the user's cart if any
@@ -81,8 +81,7 @@ class CartItemAddSerializer(serializers.Serializer):
             raise serializers.ValidationError(
                 {
                     "quantity": (
-                        f"Insufficient stock for '{product.name}'. "
-                        f"Requested total: {total_requested}, available stock: {product.stock_quantity}."
+                        f"Only {product.stock_quantity} available; {total_requested} requested."
                     )
                 }
             )
@@ -101,11 +100,10 @@ class CartItemUpdateSerializer(serializers.Serializer):
             product = cart_item.product
             if not product.is_available:
                 raise serializers.ValidationError(
-                    f"Product '{product.name}' is no longer available."
+                    f"{product.name} is unavailable."
                 )
             if product.stock_quantity < value:
                 raise serializers.ValidationError(
-                    f"Insufficient stock for '{product.name}'. "
-                    f"Requested: {value}, available: {product.stock_quantity}."
+                    f"Only {product.stock_quantity} available; {value} requested."
                 )
         return value

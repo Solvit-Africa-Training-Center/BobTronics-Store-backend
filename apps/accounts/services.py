@@ -9,8 +9,8 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 from apps.accounts.models import User
 
-ACTIVATION_MESSAGE = "Registration successful. Check your email for account activation instructions."
-PASSWORD_RESET_MESSAGE = "If an active account matches that email, password reset instructions have been sent."
+ACTIVATION_MESSAGE = "Check your email to activate your account."
+PASSWORD_RESET_MESSAGE = "If an account exists, reset instructions will be sent."
 
 
 def _uid_and_token(user):
