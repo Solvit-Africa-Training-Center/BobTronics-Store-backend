@@ -193,7 +193,7 @@ EMAIL_USE_TLS = config("EMAIL_USE_TLS", default=True, cast=bool)
 EMAIL_TIMEOUT = int(config("EMAIL_TIMEOUT", default="10") or 10)
 DEFAULT_FROM_EMAIL = config(
     "DEFAULT_FROM_EMAIL",
-    default="BobTronics <no-reply@bobtronics.local>",
+    default="BobTronics Store <masengeshoodile@gmail.com>",
 )
 SITE_URL = config("SITE_URL", default="http://localhost:8000").rstrip("/")
 
