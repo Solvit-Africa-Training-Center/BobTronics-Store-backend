@@ -36,10 +36,11 @@ def _send_account_email(user, subject, intro, endpoint):
         "If you did not request this, you can ignore this message."
     )
     try:
-        send_mail(subject, body, settings.DEFAULT_FROM_EMAIL, [user.email], fail_silently=False)
-    except (SMTPException, OSError, TimeoutError) as exc:
-        # Log only the exception type; backend exception text can contain connection details.
-        logger.warning("Account email delivery failed (%s).", type(exc).__name__)
+        sent_count = send_mail(subject, body, settings.DEFAULT_FROM_EMAIL, [user.email], fail_silently=False)
+        print(f"[EMAIL_SUCCESS] Sent '{subject}' to {user.email} (sent={sent_count}, backend={settings.EMAIL_BACKEND})", flush=True)
+    except Exception as exc:
+        logger.warning("Account email delivery failed (%s): %s", type(exc).__name__, exc)
+        print(f"[EMAIL_ERROR] Delivery failed for {user.email}: {type(exc).__name__} - {exc}", flush=True)
 
 
 @transaction.atomic

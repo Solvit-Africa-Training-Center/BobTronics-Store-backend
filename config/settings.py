@@ -184,13 +184,19 @@ SPECTACULAR_SETTINGS = {
     "TITLE": "BØB TRONICS Store API", "DESCRIPTION": "Backend API for the BØB TRONICS Store.",
     "VERSION": "1.0.0", "SERVE_INCLUDE_SCHEMA": False,
 }
-EMAIL_BACKEND = config("EMAIL_BACKEND", default="") or "django.core.mail.backends.console.EmailBackend"
-EMAIL_HOST = config("EMAIL_HOST", default="")
+EMAIL_HOST_USER = config("EMAIL_HOST_USER", default="").strip()
+EMAIL_HOST_PASSWORD = config("EMAIL_HOST_PASSWORD", default="").strip()
+EMAIL_HOST = config("EMAIL_HOST", default="smtp.gmail.com" if EMAIL_HOST_USER else "").strip()
 EMAIL_PORT = int(config("EMAIL_PORT", default="587") or 587)
-EMAIL_HOST_USER = config("EMAIL_HOST_USER", default="")
-EMAIL_HOST_PASSWORD = config("EMAIL_HOST_PASSWORD", default="")
 EMAIL_USE_TLS = config("EMAIL_USE_TLS", default=True, cast=bool)
-EMAIL_TIMEOUT = int(config("EMAIL_TIMEOUT", default="10") or 10)
+EMAIL_TIMEOUT = int(config("EMAIL_TIMEOUT", default="20") or 20)
+
+default_email_backend = (
+    "django.core.mail.backends.smtp.EmailBackend"
+    if EMAIL_HOST_USER
+    else "django.core.mail.backends.console.EmailBackend"
+)
+EMAIL_BACKEND = config("EMAIL_BACKEND", default=default_email_backend).strip() or default_email_backend
 DEFAULT_FROM_EMAIL = config(
     "DEFAULT_FROM_EMAIL",
     default="BobTronics Store <masengeshoodile@gmail.com>",
