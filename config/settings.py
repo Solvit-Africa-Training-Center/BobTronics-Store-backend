@@ -190,8 +190,7 @@ EMAIL_HOST_PASSWORD = config("EMAIL_HOST_PASSWORD", default="").strip()
 EMAIL_HOST = config("EMAIL_HOST", default="smtp.gmail.com" if EMAIL_HOST_USER else "").strip()
 EMAIL_PORT = int(config("EMAIL_PORT", default="587") or 587)
 EMAIL_USE_TLS = config("EMAIL_USE_TLS", default=True, cast=bool)
-EMAIL_TIMEOUT = int(config("EMAIL_TIMEOUT", default="20") or 20)
-
+EMAIL_TIMEOUT = int(config("EMAIL_TIMEOUT", default="10") or 10)
 default_email_backend = (
     "django.core.mail.backends.smtp.EmailBackend"
     if EMAIL_HOST_USER
