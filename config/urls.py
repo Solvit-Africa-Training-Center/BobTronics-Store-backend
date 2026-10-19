@@ -14,7 +14,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework_simplejwt.views import TokenRefreshView
 
-from apps.accounts.views import LoginView
+from apps.accounts.views import GoogleLoginView, LoginView
 
 
 @extend_schema(
@@ -52,6 +52,7 @@ urlpatterns = [
 
     # Authentication routes
     path("api/v1/auth/login/", LoginView.as_view(), name="auth-login"),
+    path("api/v1/auth/google/", GoogleLoginView.as_view(), name="auth-google-login"),
     path(
         "api/v1/auth/refresh/",
         TokenRefreshView.as_view(permission_classes=[AllowAny]),
