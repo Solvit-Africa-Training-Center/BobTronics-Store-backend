@@ -72,13 +72,13 @@ class CustomerProfileUpdateSerializer(serializers.ModelSerializer):
     def validate_first_name(self, value):
         stripped = value.strip()
         if not stripped:
-            raise serializers.ValidationError("First name cannot be blank.")
+            raise serializers.ValidationError("Enter your first name.")
         return stripped
 
     def validate_last_name(self, value):
         stripped = value.strip()
         if not stripped:
-            raise serializers.ValidationError("Last name cannot be blank.")
+            raise serializers.ValidationError("Enter your last name.")
         return stripped
 
     def validate_phone(self, value):
@@ -103,7 +103,7 @@ class CustomerAddressSerializer(serializers.ModelSerializer):
     def validate_residence(self, value):
         stripped = value.strip()
         if not stripped:
-            raise serializers.ValidationError("Residence address cannot be blank.")
+            raise serializers.ValidationError("Enter your address.")
         return stripped
 
 

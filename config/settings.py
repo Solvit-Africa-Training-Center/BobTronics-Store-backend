@@ -104,17 +104,45 @@ MEDIA_URL = "media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
 
+def _first_error_message(value):
+    """Return the first readable validation message from nested DRF errors."""
+    if isinstance(value, dict):
+        for nested in value.values():
+            message = _first_error_message(nested)
+            if message:
+                return message
+        return ""
+    if isinstance(value, (list, tuple)):
+        for nested in value:
+            message = _first_error_message(nested)
+            if message:
+                return message
+        return ""
+    return str(value) if value is not None else ""
+
+
 def api_exception_handler(exc, context):
-    """Return API errors in a consistent envelope."""
+    """Return concise, customer-friendly API errors in a consistent envelope."""
     from rest_framework.views import exception_handler
     response = exception_handler(exc, context)
     if response is None:
         return None
+
     details = response.data
-    if isinstance(details, dict) and "detail" in details:
-        message = str(details["detail"])
+    message = _first_error_message(details)
+    if response.status_code == 401:
+        message = "Please log in to continue."
+    elif response.status_code == 403:
+        message = "Access to this action is not allowed."
+    elif response.status_code == 404:
+        message = "We couldn't find what you requested."
+    elif response.status_code == 400:
+        if isinstance(details, dict) and len(details) > 1:
+            message = "Please check the form fields."
+        message = message or "Please check your information."
     else:
-        message = "Request validation failed" if response.status_code == 400 else "Request failed"
+        message = message or "Request could not be completed."
+
     response.data = {"success": False, "error": {
         "status_code": response.status_code, "message": message, "details": details,
     }}
