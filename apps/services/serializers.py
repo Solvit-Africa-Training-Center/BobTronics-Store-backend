@@ -44,6 +44,14 @@ class ServiceSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
+class ServiceActionResponseSerializer(ServiceSerializer):
+    message = serializers.CharField()
+
+    class Meta(ServiceSerializer.Meta):
+        fields = ["message", *ServiceSerializer.Meta.fields]
+        read_only_fields = fields
+
+
 class AdminServiceUpdateSerializer(serializers.ModelSerializer):
     """Admin-only fields for managing a service request."""
 
@@ -83,11 +91,14 @@ class AdminServiceUpdateSerializer(serializers.ModelSerializer):
             ServiceStatus.CANCELLED: set(),
         }
         if new_status != current and new_status not in allowed_transitions[current]:
+            status_labels = dict(ServiceStatus.choices)
+            current_label = status_labels.get(current, current)
+            new_label = status_labels.get(new_status, new_status)
             raise serializers.ValidationError(
                 {
                     "status": (
-                        f"A service request cannot move from '{current}' to "
-                        f"'{new_status}'."
+                        f"This request can't move from {current_label} to "
+                        f"{new_label}."
                     )
                 }
             )
@@ -95,7 +106,7 @@ class AdminServiceUpdateSerializer(serializers.ModelSerializer):
         final_cost = attrs.get("final_cost")
         if final_cost is not None and new_status != ServiceStatus.COMPLETED:
             raise serializers.ValidationError(
-                {"final_cost": "Final cost can only be set when the request is completed."}
+                {"final_cost": "Complete the request before setting its final cost."}
             )
         return attrs
 

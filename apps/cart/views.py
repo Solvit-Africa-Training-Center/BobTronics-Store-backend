@@ -98,7 +98,7 @@ class CartItemAddView(APIView):
         return Response(
             {
                 "success": True,
-                "message": "Product added to cart successfully.",
+                "message": "Added to cart.",
                 "data": CartItemSerializer(cart_item).data,
             },
             status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
@@ -139,7 +139,7 @@ class CartItemDetailView(APIView):
         return Response(
             {
                 "success": True,
-                "message": "Cart item quantity updated.",
+                "message": "Cart updated.",
                 "data": CartItemSerializer(cart_item).data,
             },
             status=status.HTTP_200_OK,
@@ -148,7 +148,7 @@ class CartItemDetailView(APIView):
     @extend_schema(
         summary="Remove Cart Item",
         description="Remplements an item from the customer's cart.",
-        responses={200: OpenApiResponse(description="Item removed successfully.")},
+        responses={200: OpenApiResponse(description="Item removed from cart.")},
     )
     def delete(self, request, cart_item_id):
         cart_item = self.get_object(request.user, cart_item_id)
@@ -158,7 +158,7 @@ class CartItemDetailView(APIView):
         return Response(
             {
                 "success": True,
-                "message": f"'{product_name}' was removed from your cart.",
+                "message": "Removed from cart.",
             },
             status=status.HTTP_200_OK,
         )
@@ -174,14 +174,14 @@ class CartClearView(APIView):
     @extend_schema(
         summary="Clear Cart",
         description="Empties the customer's shopping cart.",
-        responses={200: OpenApiResponse(description="Cart cleared successfully.")},
+        responses={200: OpenApiResponse(description="Cart cleared.")},
     )
     def delete(self, request):
         count, _ = CartItem.objects.filter(user=request.user).delete()
         return Response(
             {
                 "success": True,
-                "message": "Your cart has been cleared.",
+                "message": "Cart cleared.",
                 "deleted_count": count,
             },
             status=status.HTTP_200_OK,

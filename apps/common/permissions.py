@@ -9,7 +9,7 @@ class IsAdminRole(BasePermission):
     is `admin` or `super_admin`.
     """
 
-    message = "You do not have permission to perform this action."
+    message = "Access to this action is not allowed."
 
     def has_permission(self, request, view):
         user = request.user

@@ -157,7 +157,7 @@ class OrderCheckoutSerializer(serializers.Serializer):
             address = getattr(user, "residence", "")
         if not address or not address.strip():
             raise serializers.ValidationError(
-                {"shipping_address": "Shipping address is required to place an order."}
+                {"shipping_address": "Enter a shipping address."}
             )
         attrs["shipping_address"] = address.strip()
 
@@ -167,7 +167,7 @@ class OrderCheckoutSerializer(serializers.Serializer):
             phone = getattr(user, "phone", "")
         if not phone or not phone.strip():
             raise serializers.ValidationError(
-                {"phone": "A valid phone number is required to place an order."}
+                {"phone": "Enter a valid phone number."}
             )
         attrs["phone"] = phone.strip()
 

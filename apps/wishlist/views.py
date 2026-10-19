@@ -85,7 +85,7 @@ class WishlistItemAddView(APIView):
         return Response(
             {
                 "success": True,
-                "message": f"'{product.name}' was saved to your wishlist.",
+                "message": "Saved to wishlist.",
                 "data": WishlistItemSerializer(item).data,
             },
             status=status.HTTP_201_CREATED,
@@ -102,7 +102,7 @@ class WishlistItemDetailView(APIView):
     @extend_schema(
         summary="Remove Product from Wishlist",
         description="Removes a product from the user's wishlist by product ID.",
-        responses={200: OpenApiResponse(description="Item removed successfully.")},
+        responses={200: OpenApiResponse(description="Item removed from wishlist.")},
     )
     def delete(self, request, product_id):
         wishlist = get_object_or_404(Wishlist, user=request.user)
@@ -117,7 +117,7 @@ class WishlistItemDetailView(APIView):
         return Response(
             {
                 "success": True,
-                "message": f"'{product_name}' was removed from your wishlist.",
+                "message": "Removed from wishlist.",
             },
             status=status.HTTP_200_OK,
         )
@@ -136,7 +136,7 @@ class WishlistMoveToCartView(APIView):
         description="Transfers a product from wishlist to cart if stock is available.",
         request=MoveToCartSerializer,
         responses={
-            200: OpenApiResponse(description="Moved to cart successfully."),
+            200: OpenApiResponse(description="Moved to cart."),
             400: OpenApiResponse(description="Insufficient stock or unavailable."),
         },
     )
@@ -160,7 +160,8 @@ class WishlistMoveToCartView(APIView):
                     "success": False,
                     "error": {
                         "status_code": 400,
-                        "message": f"'{product.name}' is currently unavailable for sale.",
+                        "message": f"{product.name} is unavailable.",
+                        "details": {"detail": f"{product.name} is unavailable."},
                     },
                 },
                 status=status.HTTP_400_BAD_REQUEST,
@@ -173,9 +174,11 @@ class WishlistMoveToCartView(APIView):
                     "error": {
                         "status_code": 400,
                         "message": (
-                            f"Cannot move to cart: '{product.name}' only has "
-                            f"{product.stock_quantity} item(s) in stock (requested: {quantity})."
+                            f"{product.name}: {product.stock_quantity} left; {quantity} requested."
                         ),
+                        "details": {
+                            "detail": f"{product.name}: {product.stock_quantity} left; {quantity} requested."
+                        },
                     },
                 },
                 status=status.HTTP_400_BAD_REQUEST,
@@ -197,7 +200,7 @@ class WishlistMoveToCartView(APIView):
         return Response(
             {
                 "success": True,
-                "message": f"'{product.name}' moved from wishlist to cart.",
+                "message": "Moved to cart.",
             },
             status=status.HTTP_200_OK,
         )

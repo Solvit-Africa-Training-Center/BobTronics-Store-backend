@@ -93,9 +93,11 @@ class DeliveryStatusUpdateSerializer(serializers.Serializer):
                 return new_status
             allowed = self.VALID_TRANSITIONS.get(current_status, [])
             if new_status not in allowed:
+                status_labels = dict(DeliveryStatus.choices)
+                current_label = status_labels.get(current_status, current_status)
+                new_label = status_labels.get(new_status, new_status)
                 raise serializers.ValidationError(
-                    f"Invalid status transition from '{current_status}' to '{new_status}'. "
-                    f"Allowed transitions: {allowed if allowed else 'None (terminal state)'}."
+                    f"This delivery can't move from {current_label} to {new_label}."
                 )
         return new_status
 
@@ -106,7 +108,7 @@ class DeliveryStatusUpdateSerializer(serializers.Serializer):
             if instance:
                 qs = qs.exclude(pk=instance.pk)
             if qs.exists():
-                raise serializers.ValidationError("This tracking number is already in use.")
+                raise serializers.ValidationError("This tracking number is already used.")
         return value
 
     def save(self, **kwargs):

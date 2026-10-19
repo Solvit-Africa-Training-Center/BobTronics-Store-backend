@@ -9,6 +9,7 @@ from apps.catalog.pagination import StandardPagination
 from .models import Service
 from .serializers import (
     AdminServiceUpdateSerializer,
+    ServiceActionResponseSerializer,
     ServiceCreateSerializer,
     ServiceSerializer,
 )
@@ -51,7 +52,7 @@ class CustomerServiceListCreateView(generics.ListCreateAPIView):
         ),
         request=ServiceCreateSerializer,
         responses={
-            201: ServiceSerializer,
+            201: ServiceActionResponseSerializer,
             400: OpenApiResponse(description="Invalid service request details"),
         },
         tags=["Service Requests"],
@@ -61,7 +62,10 @@ class CustomerServiceListCreateView(generics.ListCreateAPIView):
         serializer.is_valid(raise_exception=True)
         service = serializer.save(user=request.user)
         return Response(
-            ServiceSerializer(service).data,
+            {
+                "message": "Service request submitted.",
+                **ServiceSerializer(service).data,
+            },
             status=status.HTTP_201_CREATED,
         )
 
@@ -149,7 +153,7 @@ class AdminServiceDetailView(generics.RetrieveUpdateAPIView):
         ),
         request=AdminServiceUpdateSerializer,
         responses={
-            200: ServiceSerializer,
+            200: ServiceActionResponseSerializer,
             400: OpenApiResponse(description="Invalid cost or status transition"),
             404: OpenApiResponse(description="Service request not found"),
         },
@@ -162,4 +166,10 @@ class AdminServiceDetailView(generics.RetrieveUpdateAPIView):
         )
         serializer.is_valid(raise_exception=True)
         service = serializer.save()
-        return Response(ServiceSerializer(service).data, status=status.HTTP_200_OK)
+        return Response(
+            {
+                "message": "Service request updated.",
+                **ServiceSerializer(service).data,
+            },
+            status=status.HTTP_200_OK,
+        )

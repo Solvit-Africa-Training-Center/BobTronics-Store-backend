@@ -164,7 +164,7 @@ class AdminDeliveryStatusUpdateView(APIView):
         return Response(
             {
                 "success": True,
-                "message": f"Delivery status updated to '{updated_delivery.get_status_display()}'.",
+                "message": f"Delivery updated to {updated_delivery.get_status_display()}.",
                 "data": DeliverySerializer(updated_delivery).data,
             },
             status=status.HTTP_200_OK,
