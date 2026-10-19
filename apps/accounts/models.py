@@ -50,6 +50,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     first_name = models.CharField(max_length=150)
     last_name = models.CharField(max_length=150)
     email = models.EmailField(unique=True, db_index=True)
+    google_sub = models.CharField(max_length=255, unique=True, null=True, blank=True)
     phone = models.CharField(max_length=30, blank=True)
     residence = models.CharField(max_length=255, blank=True)
     role = models.CharField(

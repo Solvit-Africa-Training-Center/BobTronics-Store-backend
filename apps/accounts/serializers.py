@@ -4,6 +4,7 @@ from django.core.cache import cache
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
+from rest_framework.exceptions import APIException
 from rest_framework_simplejwt.serializers import TokenRefreshSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 
@@ -217,6 +218,44 @@ class LoginSerializer(serializers.Serializer):
         if not user.is_active:
             raise serializers.ValidationError({"detail": "Account is not activated. Please verify your email before logging in."})
         _clear_login_failures(email, request)
+        refresh = RefreshToken.for_user(user)
+        refresh["role"] = user.role
+        refresh["email"] = user.email
+        return {
+            "user": user,
+            "tokens": {"access": str(refresh.access_token), "refresh": str(refresh)},
+        }
+
+
+class GoogleSignInUnavailable(APIException):
+    status_code = 503
+    default_detail = "Google sign-in is temporarily unavailable."
+    default_code = "google_sign_in_unavailable"
+
+
+class GoogleLoginSerializer(serializers.Serializer):
+    credential = serializers.CharField(write_only=True, trim_whitespace=True)
+
+    def validate(self, attrs):
+        from apps.accounts.google_auth import (
+            GoogleLoginError,
+            GoogleLoginNotConfigured,
+            GoogleLoginUnavailable,
+            login_with_google_credential,
+        )
+
+        try:
+            user = login_with_google_credential(attrs["credential"])
+        except GoogleLoginNotConfigured as exc:
+            raise GoogleSignInUnavailable("Google sign-in is not configured.") from exc
+        except GoogleLoginUnavailable as exc:
+            raise GoogleSignInUnavailable() from exc
+        except GoogleLoginError as exc:
+            raise serializers.ValidationError({"credential": str(exc)}) from exc
+
+        if not user.is_active:
+            raise serializers.ValidationError("This account is inactive. Contact support.")
+
         refresh = RefreshToken.for_user(user)
         refresh["role"] = user.role
         refresh["email"] = user.email

@@ -10,6 +10,7 @@ except ImportError:
 BASE_DIR = Path(__file__).resolve().parent.parent
 DEBUG = config("DEBUG", default=False, cast=bool)
 SECRET_KEY = config("SECRET_KEY", default="")
+GOOGLE_OAUTH_CLIENT_ID = config("GOOGLE_OAUTH_CLIENT_ID", default="").strip()
 if not SECRET_KEY and not DEBUG:
     raise ValueError("SECRET_KEY must be set when DEBUG is False.")
 

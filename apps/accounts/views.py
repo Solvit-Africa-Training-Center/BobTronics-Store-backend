@@ -6,6 +6,7 @@ from rest_framework_simplejwt.views import TokenRefreshView
 
 from apps.accounts.serializers import (
     ActivationSerializer,
+    GoogleLoginSerializer,
     LoginResponseSerializer,
     LoginSerializer,
     LogoutSerializer,
@@ -52,6 +53,47 @@ class LoginView(generics.GenericAPIView):
             "user": UserProfileSerializer(user).data,
             "tokens": serializer.validated_data["tokens"],
         }, status=status.HTTP_200_OK)
+
+
+class GoogleLoginView(generics.GenericAPIView):
+    serializer_class = GoogleLoginSerializer
+    permission_classes = [permissions.AllowAny]
+    throttle_classes = [LoginRateThrottle]
+
+    @extend_schema(
+        operation_id="accounts_google_login",
+        summary="Sign in with Google",
+        description=(
+            "Verifies a Google Identity Services ID token and returns BobTronics "
+            "JWT access and refresh tokens."
+        ),
+        request=GoogleLoginSerializer,
+        responses={
+            200: LoginResponseSerializer,
+            400: OpenApiResponse(description="Invalid Google credential or account"),
+            503: OpenApiResponse(description="Google sign-in is not configured or unavailable"),
+        },
+        examples=[
+            OpenApiExample(
+                "Google login request",
+                request_only=True,
+                value={"credential": "google-id-token"},
+            ),
+        ],
+        tags=["Authentication"],
+    )
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.validated_data["user"]
+        return Response(
+            {
+                "message": "Logged in with Google.",
+                "user": UserProfileSerializer(user).data,
+                "tokens": serializer.validated_data["tokens"],
+            },
+            status=status.HTTP_200_OK,
+        )
 
 
 @extend_schema_view(post=extend_schema(
