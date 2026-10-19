@@ -36,12 +36,15 @@ class ProtectedDeleteMixin:
         try:
             return super().destroy(request, *args, **kwargs)
         except ProtectedError:
+            message = "This item is in use and can't be deleted. Deactivate it instead."
             return Response(
                 {
-                    "detail": (
-                        "This item cannot be deleted because other records "
-                        "depend on it. Deactivate it instead."
-                    )
+                    "success": False,
+                    "error": {
+                        "status_code": status.HTTP_409_CONFLICT,
+                        "message": message,
+                        "details": {"detail": message},
+                    },
                 },
                 status=status.HTTP_409_CONFLICT,
             )
@@ -134,7 +137,18 @@ class ProductAdminViewSet(ProtectedDeleteMixin, viewsets.ModelViewSet):
             else:
                 deduct_stock([(product.pk, -delta)], require_available=False)
         except StockError as exc:
-            return Response({"detail": str(exc)}, status=status.HTTP_409_CONFLICT)
+            message = str(exc)
+            return Response(
+                {
+                    "success": False,
+                    "error": {
+                        "status_code": status.HTTP_409_CONFLICT,
+                        "message": message,
+                        "details": {"detail": message},
+                    },
+                },
+                status=status.HTTP_409_CONFLICT,
+            )
 
         logger.info(
             "Stock adjusted: product=%s delta=%s by user=%s reason=%r",

@@ -33,7 +33,7 @@ class CategorySerializer(serializers.ModelSerializer):
         value = clean_text(value)
         if len(value) < 2:
             raise serializers.ValidationError(
-                "Category name must be at least 2 characters long."
+                "Use at least 2 characters for the category name."
             )
 
         duplicates = Category.objects.filter(name__iexact=value)
@@ -41,7 +41,7 @@ class CategorySerializer(serializers.ModelSerializer):
             duplicates = duplicates.exclude(pk=self.instance.pk)
         if duplicates.exists():
             raise serializers.ValidationError(
-                "A category with this name already exists."
+                "This category already exists."
             )
         return value
 
@@ -67,7 +67,7 @@ class ProductImageSerializer(serializers.ModelSerializer):
         value = value.strip()
         if not value.lower().startswith(("http://", "https://")):
             raise serializers.ValidationError(
-                "Image URL must start with http:// or https://."
+                "Enter a valid image URL starting with http:// or https://."
             )
         return value
 
@@ -82,14 +82,14 @@ class ProductImageSerializer(serializers.ModelSerializer):
 
         if url and siblings.filter(image_url=url).exists():
             raise serializers.ValidationError(
-                {"image_url": "This image is already attached to the product."}
+                {"image_url": "This image is already added to the product."}
             )
 
         if instance is None and siblings.count() >= MAX_IMAGES_PER_PRODUCT:
             raise serializers.ValidationError(
                 {
                     "product": (
-                        f"A product can have at most {MAX_IMAGES_PER_PRODUCT} images."
+                        f"A product can have up to {MAX_IMAGES_PER_PRODUCT} images."
                     )
                 }
             )
@@ -175,7 +175,7 @@ class ProductSerializer(serializers.ModelSerializer):
         value = clean_text(value)
         if len(value) < 2:
             raise serializers.ValidationError(
-                "Product name must be at least 2 characters long."
+                "Use at least 2 characters for the product name."
             )
         return value
 
@@ -183,19 +183,19 @@ class ProductSerializer(serializers.ModelSerializer):
         value = clean_text(value)
         if len(value) < 2:
             raise serializers.ValidationError(
-                "Brand must be at least 2 characters long."
+                "Use at least 2 characters for the brand."
             )
         return value
 
     def validate_price(self, value):
         if value <= 0:
-            raise serializers.ValidationError("Price must be greater than zero.")
+            raise serializers.ValidationError("Enter a price greater than zero.")
         return value
 
     def validate_stock_quantity(self, value):
         if value > MAX_STOCK_QUANTITY:
             raise serializers.ValidationError(
-                f"Stock quantity cannot exceed {MAX_STOCK_QUANTITY}."
+                f"Stock cannot exceed {MAX_STOCK_QUANTITY} units."
             )
         return value
 
@@ -217,8 +217,7 @@ class ProductSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError(
                     {
                         "name": (
-                            "A product with this name and brand already "
-                            "exists in this category."
+                            "This product already exists in this category."
                         )
                     }
                 )
