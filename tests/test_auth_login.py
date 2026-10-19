@@ -82,7 +82,7 @@ class LoginAPITestCase(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertFalse(response.data["success"])
         self.assertIn(
-            "Account is not activated. Please verify your email before logging in.",
+            "Verify your email before logging in.",
             response.data["error"]["message"],
         )
 

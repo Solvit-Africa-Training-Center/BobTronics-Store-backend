@@ -71,7 +71,7 @@ class RegisterSerializer(serializers.Serializer):
 
     def validate_email(self, value):
         if User.objects.filter(email__iexact=value).exists():
-            raise serializers.ValidationError("An account with this email already exists.")
+            raise serializers.ValidationError("This email is already registered.")
         return value
 
     def validate(self, attrs):
@@ -95,7 +95,7 @@ class ActivationSerializer(serializers.Serializer):
 
     def save(self, **kwargs):
         if not activate_account(self.validated_data["uid"], self.validated_data["token"]):
-            raise serializers.ValidationError("This activation link is invalid or expired.")
+            raise serializers.ValidationError("Activation link is invalid or expired.")
         return True
 
 
@@ -104,7 +104,7 @@ class PasswordResetRequestSerializer(serializers.Serializer):
 
     def save(self, **kwargs):
         request_password_reset(self.validated_data["email"])
-        return {"message": "If an active account matches that email, password reset instructions have been sent."}
+        return {"message": "If an account exists, reset instructions will be sent."}
 
 
 class PasswordResetConfirmSerializer(serializers.Serializer):
@@ -126,8 +126,8 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
         if not complete_password_reset(
             self.validated_data["uid"], self.validated_data["token"], self.validated_data["new_password"]
         ):
-            raise serializers.ValidationError({"token": "This password reset link is invalid or expired."})
-        return {"message": "Password has been reset successfully."}
+            raise serializers.ValidationError({"token": "Reset link is invalid or expired."})
+        return {"message": "Password reset."}
 
 
 class LogoutSerializer(serializers.Serializer):
@@ -138,7 +138,7 @@ class LogoutSerializer(serializers.Serializer):
             blacklist_refresh_token(self.validated_data["refresh"])
         except ValueError as exc:
             raise serializers.ValidationError({"refresh": "Invalid or expired refresh token."}) from exc
-        return {"message": "Logout successful."}
+        return {"message": "Logged out."}
 
 
 class RefreshRequestSerializer(TokenRefreshSerializer):
@@ -160,6 +160,7 @@ class TokenResponseSerializer(serializers.Serializer):
 
 
 class LoginResponseSerializer(serializers.Serializer):
+    message = serializers.CharField()
     user = UserProfileSerializer()
     tokens = TokenResponseSerializer()
 
@@ -184,7 +185,7 @@ class LoginSerializer(serializers.Serializer):
             _record_login_failure(email, request)
             raise serializers.ValidationError({"detail": INVALID_LOGIN_MESSAGE})
         if not user.is_active:
-            raise serializers.ValidationError({"detail": "Account is not activated. Please verify your email before logging in."})
+            raise serializers.ValidationError({"detail": "Verify your email before logging in."})
         _clear_login_failures(email, request)
         refresh = RefreshToken.for_user(user)
         refresh["role"] = user.role

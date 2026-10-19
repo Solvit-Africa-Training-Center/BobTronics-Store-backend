@@ -72,7 +72,8 @@ class OrderCheckoutView(APIView):
                         "success": False,
                         "error": {
                             "status_code": 400,
-                            "message": "Your cart is empty. Add products before placing an order.",
+                            "message": "Add products to your cart first.",
+                            "details": {"detail": "Add products to your cart first."},
                         },
                     },
                     status=status.HTTP_400_BAD_REQUEST,
@@ -99,6 +100,7 @@ class OrderCheckoutView(APIView):
                         "error": {
                             "status_code": 400,
                             "message": str(exc),
+                            "details": {"detail": str(exc)},
                         },
                     },
                     status=status.HTTP_400_BAD_REQUEST,
@@ -151,7 +153,7 @@ class OrderCheckoutView(APIView):
         return Response(
             {
                 "success": True,
-                "message": "Order placed successfully. Inventory has been updated.",
+                "message": f"Order #{order.order_id} placed.",
                 "data": OrderSerializer(order).data,
             },
             status=status.HTTP_201_CREATED,
@@ -251,7 +253,10 @@ class OrderCancelView(APIView):
                     "success": False,
                     "error": {
                         "status_code": 400,
-                        "message": f"Order #{order_id} cannot be cancelled because it is already '{order.get_status_display()}'.",
+                        "message": f"Order #{order_id} can't be cancelled: it is {order.get_status_display()}.",
+                        "details": {
+                            "detail": f"Order #{order_id} can't be cancelled: it is {order.get_status_display()}."
+                        },
                     },
                 },
                 status=status.HTTP_400_BAD_REQUEST,
@@ -277,7 +282,7 @@ class OrderCancelView(APIView):
         return Response(
             {
                 "success": True,
-                "message": f"Order #{order_id} has been cancelled and stock has been restored.",
+                "message": f"Order #{order_id} cancelled.",
                 "data": OrderSerializer(order).data,
             },
             status=status.HTTP_200_OK,
@@ -365,7 +370,7 @@ class AdminOrderStatusUpdateView(APIView):
         return Response(
             {
                 "success": True,
-                "message": f"Order #{order_id} status updated to '{order.get_status_display()}'.",
+                "message": f"Order #{order_id} updated to {order.get_status_display()}.",
                 "data": OrderSerializer(order).data,
             },
             status=status.HTTP_200_OK,

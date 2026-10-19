@@ -57,7 +57,7 @@ class WishlistItemAddSerializer(serializers.Serializer):
             wishlist = Wishlist.objects.filter(user=request.user).first()
             if wishlist and WishlistItem.objects.filter(wishlist=wishlist, product=product).exists():
                 raise serializers.ValidationError(
-                    {"product_id": f"Product '{product.name}' is already in your wishlist."}
+                    {"product_id": f"{product.name} is already in your wishlist."}
                 )
         return attrs
 
