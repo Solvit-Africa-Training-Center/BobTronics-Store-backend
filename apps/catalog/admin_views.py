@@ -2,6 +2,7 @@ import logging
 
 from django.db import transaction
 from django.db.models import ProtectedError
+from django.db.models import Avg, Count
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.utils import extend_schema
 from rest_framework import filters, serializers, status, viewsets
@@ -11,7 +12,7 @@ from rest_framework.response import Response
 from apps.common.permissions import IsAdminRole
 
 from .filters import ProductFilter
-from .models import Category, Product, ProductImage, StockMovementType
+from .models import Category, Product, ProductImage, StockMovement, StockMovementType
 from .pagination import StandardPagination
 from .serializers import (
     MAX_STOCK_QUANTITY,
@@ -19,7 +20,11 @@ from .serializers import (
     ProductImageSerializer,
     ProductSerializer,
 )
-from .stock_serializers import LowStockQuerySerializer, StockAdjustmentSerializer
+from .stock_serializers import (
+    LowStockQuerySerializer,
+    StockAdjustmentSerializer,
+    StockMovementHistorySerializer,
+)
 from .stock_service import StockError, deduct_stock, low_stock_products, restore_stock
 
 logger = logging.getLogger(__name__)
@@ -87,6 +92,10 @@ class ProductAdminViewSet(ProtectedDeleteMixin, viewsets.ModelViewSet):
         Product.objects.all()
         .select_related("category")
         .prefetch_related("images")
+        .annotate(
+            avg_rating=Avg("feedbacks__rating"),
+            reviews_count=Count("feedbacks"),
+        )
         .order_by("-created_at")
     )
     serializer_class = ProductSerializer
@@ -178,6 +187,23 @@ class ProductAdminViewSet(ProtectedDeleteMixin, viewsets.ModelViewSet):
 
         product = self.get_object()  # fresh copy with the new stock level
         return Response(ProductSerializer(product).data)
+
+    @extend_schema(
+        summary="Admin: Product Stock History",
+        description="Returns paginated historical records of stock adjustments and movements.",
+        responses={200: StockMovementHistorySerializer(many=True)},
+    )
+    @action(detail=True, methods=["get"], url_path="stock-history")
+    def stock_history(self, request, pk=None):
+        product = self.get_object()
+        movements = (
+            StockMovement.objects.filter(product=product)
+            .select_related("actor")
+            .order_by("-created_at")
+        )
+        page = self.paginate_queryset(movements)
+        serializer = StockMovementHistorySerializer(page, many=True)
+        return self.get_paginated_response(serializer.data)
 
 
 class ProductImageAdminViewSet(ProtectedDeleteMixin, viewsets.ModelViewSet):

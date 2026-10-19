@@ -131,6 +131,17 @@ class AdminDeliveryDetailView(generics.RetrieveAPIView):
     def get(self, request, *args, **kwargs):
         return super().get(request, *args, **kwargs)
 
+    @extend_schema(
+        summary="Admin: Update Delivery Status / Assignment",
+        description="Update delivery status or tracking number.",
+        request=DeliveryStatusUpdateSerializer,
+        responses={200: DeliverySerializer},
+        tags=["Deliveries - Admin"],
+    )
+    def patch(self, request, *args, **kwargs):
+        delivery_id = kwargs.get("delivery_id")
+        return AdminDeliveryStatusUpdateView().patch(request, delivery_id=delivery_id)
+
 
 class AdminDeliveryStatusUpdateView(APIView):
     """
@@ -171,3 +182,77 @@ class AdminDeliveryStatusUpdateView(APIView):
             },
             status=status.HTTP_200_OK,
         )
+
+
+class DeliveryFeesView(APIView):
+    """
+    GET: Return available fulfillment options and standard delivery fee schedule.
+    """
+
+    permission_classes = [AllowAny]
+
+    @extend_schema(
+        summary="Get Delivery Fees",
+        description="Returns standard shipping fees for delivery methods.",
+        tags=["Deliveries"],
+    )
+    def get(self, request):
+        return Response(
+            {
+                "success": True,
+                "data": [
+                    {
+                        "method": "standard",
+                        "name": "Standard Delivery",
+                        "fee": "80.00",
+                        "estimated_days": "2-3 business days",
+                    },
+                    {
+                        "method": "express",
+                        "name": "Express Delivery",
+                        "fee": "150.00",
+                        "estimated_days": "Same day / Next day",
+                    },
+                    {
+                        "method": "store_pickup",
+                        "name": "Store Pick-up",
+                        "fee": "0.00",
+                        "estimated_days": "Ready in 2 hours",
+                    },
+                ],
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class AdminCouriersListView(APIView):
+    """
+    GET: Return available delivery agents / couriers for shipment assignment.
+    """
+
+    permission_classes = [IsAdminOrSuperAdmin]
+
+    @extend_schema(
+        summary="Admin: List Couriers",
+        description="Returns list of available couriers for assignment dropdown.",
+        tags=["Deliveries - Admin"],
+    )
+    def get(self, request):
+        from apps.accounts.models import Role, User
+
+        couriers = (
+            User.objects.filter(role__in=[Role.ADMIN, Role.SUPER_ADMIN], is_active=True)
+            .values("user_id", "first_name", "last_name", "email", "phone")
+        )
+        data = [
+            {
+                "courier_id": c["user_id"],
+                "name": f"{c['first_name']} {c['last_name']}".strip() or c["email"],
+                "email": c["email"],
+                "phone": c["phone"],
+                "status": "available",
+            }
+            for c in couriers
+        ]
+        return Response({"success": True, "data": data}, status=status.HTTP_200_OK)
+

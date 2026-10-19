@@ -186,6 +186,7 @@ class AdminCustomerListView(generics.ListAPIView):
                 "residence",
                 "role",
                 "is_active",
+                "last_login",
                 "created_at",
             )
             .annotate(total_orders=Count("orders"))

@@ -1,3 +1,4 @@
+from django.db.models import Avg, Count
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters, viewsets
 from rest_framework.decorators import action
@@ -19,6 +20,10 @@ def public_products():
         Product.objects.filter(is_available=True)
         .select_related("category")
         .prefetch_related("images")
+        .annotate(
+            avg_rating=Avg("feedbacks__rating"),
+            reviews_count=Count("feedbacks"),
+        )
         .order_by("-created_at")
     )
 

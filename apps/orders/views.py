@@ -206,7 +206,7 @@ class OrderListView(APIView):
         queryset = (
             Order.objects.filter(user=request.user)
             .prefetch_related("items")
-            .select_related("user")
+            .select_related("user", "delivery", "payment")
             .order_by("-order_date")
         )
 
@@ -235,7 +235,7 @@ class OrderDetailView(APIView):
     def get(self, request, order_id):
         order_qs = (
             Order.objects.prefetch_related("items__product__category")
-            .select_related("user")
+            .select_related("user", "delivery", "payment")
         )
 
         # Allow access if owner or admin
@@ -345,7 +345,7 @@ class AdminOrderListView(APIView):
     def get(self, request):
         queryset = (
             Order.objects.prefetch_related("items")
-            .select_related("user")
+            .select_related("user", "delivery", "payment")
             .order_by("-order_date")
         )
 
