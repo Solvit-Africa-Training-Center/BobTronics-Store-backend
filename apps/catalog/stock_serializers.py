@@ -33,3 +33,26 @@ class StockAdjustmentSerializer(serializers.Serializer):
                 f"Delta cannot be larger than {MAX_STOCK_QUANTITY}."
             )
         return value
+
+
+class StockMovementHistorySerializer(serializers.Serializer):
+    """Represents a historic stock adjustment / deduction / restoration."""
+
+    movement_id = serializers.IntegerField(read_only=True)
+    delta = serializers.IntegerField(source="quantity_change", read_only=True)
+    quantity_before = serializers.IntegerField(read_only=True)
+    resulting_stock_quantity = serializers.IntegerField(source="quantity_after", read_only=True)
+    movement_type = serializers.CharField(read_only=True)
+    reason = serializers.CharField(read_only=True)
+    user = serializers.SerializerMethodField()
+    created_at = serializers.DateTimeField(read_only=True)
+
+    def get_user(self, obj):
+        if not obj.actor:
+            return None
+        return {
+            "user_id": obj.actor.user_id,
+            "name": f"{obj.actor.first_name} {obj.actor.last_name}".strip() or obj.actor.email,
+            "email": obj.actor.email,
+        }
+

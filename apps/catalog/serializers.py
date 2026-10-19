@@ -1,3 +1,4 @@
+from django.db import models
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
@@ -116,6 +117,8 @@ class ProductListSerializer(serializers.ModelSerializer):
 
     category_name = serializers.CharField(source="category.name", read_only=True)
     primary_image = serializers.SerializerMethodField()
+    average_rating = serializers.SerializerMethodField()
+    review_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Product
@@ -129,6 +132,8 @@ class ProductListSerializer(serializers.ModelSerializer):
             "stock_quantity",
             "is_available",
             "primary_image",
+            "average_rating",
+            "review_count",
         ]
         read_only_fields = fields
 
@@ -141,12 +146,33 @@ class ProductListSerializer(serializers.ModelSerializer):
         )
         return primary.image_url if primary else None
 
+    @extend_schema_field(serializers.FloatField(allow_null=True))
+    def get_average_rating(self, obj):
+        if hasattr(obj, "avg_rating") and obj.avg_rating is not None:
+            return round(float(obj.avg_rating), 1)
+        feedbacks = getattr(obj, "feedbacks", None)
+        if feedbacks is not None:
+            agg = feedbacks.aggregate(avg=models.Avg("rating"))["avg"]
+            return round(float(agg), 1) if agg is not None else None
+        return None
+
+    @extend_schema_field(serializers.IntegerField())
+    def get_review_count(self, obj) -> int:
+        if hasattr(obj, "reviews_count") and obj.reviews_count is not None:
+            return obj.reviews_count
+        feedbacks = getattr(obj, "feedbacks", None)
+        if feedbacks is not None:
+            return feedbacks.count()
+        return 0
+
 
 class ProductSerializer(serializers.ModelSerializer):
     """Full product detail, also used for admin create and update."""
 
     category_name = serializers.CharField(source="category.name", read_only=True)
     images = ProductImageNestedSerializer(many=True, read_only=True)
+    average_rating = serializers.SerializerMethodField()
+    review_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Product
@@ -161,6 +187,8 @@ class ProductSerializer(serializers.ModelSerializer):
             "stock_quantity",
             "warranty",
             "is_available",
+            "average_rating",
+            "review_count",
             "images",
             "created_at",
             "updated_at",
@@ -169,7 +197,28 @@ class ProductSerializer(serializers.ModelSerializer):
             "product_id",
             "created_at",
             "updated_at",
+            "average_rating",
+            "review_count",
         ]
+
+    @extend_schema_field(serializers.FloatField(allow_null=True))
+    def get_average_rating(self, obj):
+        if hasattr(obj, "avg_rating") and obj.avg_rating is not None:
+            return round(float(obj.avg_rating), 1)
+        feedbacks = getattr(obj, "feedbacks", None)
+        if feedbacks is not None:
+            agg = feedbacks.aggregate(avg=models.Avg("rating"))["avg"]
+            return round(float(agg), 1) if agg is not None else None
+        return None
+
+    @extend_schema_field(serializers.IntegerField())
+    def get_review_count(self, obj) -> int:
+        if hasattr(obj, "reviews_count") and obj.reviews_count is not None:
+            return obj.reviews_count
+        feedbacks = getattr(obj, "feedbacks", None)
+        if feedbacks is not None:
+            return feedbacks.count()
+        return 0
 
     def validate_name(self, value):
         value = clean_text(value)

@@ -51,6 +51,37 @@ class UserSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
+class UserUpdateSerializer(serializers.ModelSerializer):
+    """Allows authenticated user to update their personal information."""
+
+    first_name = serializers.CharField(max_length=150, required=False)
+    last_name = serializers.CharField(max_length=150, required=False)
+    phone = serializers.CharField(max_length=30, required=False, allow_blank=True)
+    residence = serializers.CharField(max_length=255, required=False, allow_blank=True)
+
+    class Meta:
+        model = User
+        fields = ("first_name", "last_name", "phone", "residence")
+
+    def validate_first_name(self, value):
+        stripped = value.strip()
+        if not stripped:
+            raise serializers.ValidationError("First name cannot be blank.")
+        return stripped
+
+    def validate_last_name(self, value):
+        stripped = value.strip()
+        if not stripped:
+            raise serializers.ValidationError("Last name cannot be blank.")
+        return stripped
+
+    def validate_phone(self, value):
+        return value.strip()
+
+    def validate_residence(self, value):
+        return value.strip()
+
+
 class UserProfileSerializer(UserSerializer):
     """Profile serializer retained for the dev login response contract."""
 
@@ -193,3 +224,34 @@ class LoginSerializer(serializers.Serializer):
             "user": user,
             "tokens": {"access": str(refresh.access_token), "refresh": str(refresh)},
         }
+
+
+class ChangePasswordSerializer(serializers.Serializer):
+    """Allows authenticated user to change their password."""
+
+    current_password = serializers.CharField(write_only=True, required=True, style={"input_type": "password"})
+    new_password = serializers.CharField(write_only=True, required=True, style={"input_type": "password"})
+    password_confirm = serializers.CharField(write_only=True, required=True, style={"input_type": "password"})
+
+    def validate_current_password(self, value):
+        user = self.context["request"].user
+        if not user.check_password(value):
+            raise serializers.ValidationError("Current password is not correct.")
+        return value
+
+    def validate(self, attrs):
+        if attrs["new_password"] != attrs["password_confirm"]:
+            raise serializers.ValidationError({"password_confirm": "New passwords do not match."})
+        user = self.context["request"].user
+        try:
+            validate_password(attrs["new_password"], user=user)
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError({"new_password": list(exc.messages)}) from exc
+        return attrs
+
+    def save(self, **kwargs):
+        user = self.context["request"].user
+        user.set_password(self.validated_data["new_password"])
+        user.save(update_fields=["password"])
+        return user
+

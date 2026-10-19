@@ -17,6 +17,8 @@ from apps.accounts.serializers import (
     RegistrationResponseSerializer,
     UserSerializer,
     UserProfileSerializer,
+    UserUpdateSerializer,
+    ChangePasswordSerializer,
 )
 from apps.accounts.services import ACTIVATION_MESSAGE, PASSWORD_RESET_MESSAGE
 
@@ -116,22 +118,57 @@ class ActivateView(generics.GenericAPIView):
         return self._activate(request.data)
 
 
-@extend_schema_view(get=extend_schema(
-    operation_id="accounts_current_user",
-    summary="Get the authenticated user's profile",
-    responses={200: UserSerializer},
-    examples=[OpenApiExample("Current user response", response_only=True, status_codes=[200], value={
-        "user_id": 12, "first_name": "Aline", "last_name": "Uwase", "email": "aline@example.com",
-        "phone": "+250780000000", "residence": "Kigali", "role": "customer",
-        "created_at": "2026-10-13T09:00:00Z", "updated_at": "2026-10-13T09:00:00Z",
-    })],
-))
-class CurrentUserView(generics.RetrieveAPIView):
-    serializer_class = UserSerializer
+@extend_schema_view(
+    get=extend_schema(
+        operation_id="accounts_current_user",
+        summary="Get the authenticated user's profile",
+        responses={200: UserSerializer},
+        examples=[OpenApiExample("Current user response", response_only=True, status_codes=[200], value={
+            "user_id": 12, "first_name": "Aline", "last_name": "Uwase", "email": "aline@example.com",
+            "phone": "+250780000000", "residence": "Kigali", "role": "customer",
+            "created_at": "2026-10-13T09:00:00Z", "updated_at": "2026-10-13T09:00:00Z",
+        })],
+    ),
+    put=extend_schema(
+        operation_id="accounts_update_current_user",
+        summary="Update the authenticated user's profile",
+        request=UserUpdateSerializer,
+        responses={200: UserSerializer},
+    ),
+    patch=extend_schema(
+        operation_id="accounts_patch_current_user",
+        summary="Partially update the authenticated user's profile",
+        request=UserUpdateSerializer,
+        responses={200: UserSerializer},
+    ),
+)
+class CurrentUserView(generics.RetrieveUpdateAPIView):
     permission_classes = [permissions.IsAuthenticated]
+
+    def get_serializer_class(self):
+        if self.request.method in ["PUT", "PATCH"]:
+            return UserUpdateSerializer
+        return UserSerializer
 
     def get_object(self):
         return self.request.user
+
+
+@extend_schema_view(post=extend_schema(
+    operation_id="accounts_change_password",
+    summary="Change password for authenticated user",
+    request=ChangePasswordSerializer,
+    responses={200: MessageSerializer, 400: ERROR_RESPONSE},
+))
+class ChangePasswordView(generics.GenericAPIView):
+    serializer_class = ChangePasswordSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response({"message": "Password changed successfully."}, status=status.HTTP_200_OK)
 
 
 @extend_schema_view(post=extend_schema(

@@ -136,6 +136,7 @@ class AdminCustomerListSerializer(serializers.ModelSerializer):
             "residence",
             "role",
             "is_active",
+            "last_login",
             "total_orders",
             "created_at",
         )
@@ -161,6 +162,7 @@ class AdminCustomerDetailSerializer(serializers.ModelSerializer):
             "residence",
             "role",
             "is_active",
+            "last_login",
             "total_orders",
             "total_spent",
             "recent_orders",

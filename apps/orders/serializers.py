@@ -46,6 +46,10 @@ class OrderSerializer(serializers.ModelSerializer):
     status_display = serializers.CharField(source="get_status_display", read_only=True)
     customer_email = serializers.EmailField(source="user.email", read_only=True)
     customer_name = serializers.SerializerMethodField()
+    payment_status = serializers.SerializerMethodField()
+    payment_method = serializers.SerializerMethodField()
+    payment_reference = serializers.SerializerMethodField()
+    estimated_delivery = serializers.SerializerMethodField()
 
     class Meta:
         model = Order
@@ -59,27 +63,37 @@ class OrderSerializer(serializers.ModelSerializer):
             "total_amount",
             "shipping_address",
             "phone",
+            "payment_status",
+            "payment_method",
+            "payment_reference",
+            "estimated_delivery",
             "items",
             "delivery",
             "created_at",
             "updated_at",
         ]
-        read_only_fields = [
-            "order_id",
-            "customer_email",
-            "customer_name",
-            "order_date",
-            "status",
-            "status_display",
-            "total_amount",
-            "items",
-            "delivery",
-            "created_at",
-            "updated_at",
-        ]
+        read_only_fields = fields
 
     def get_customer_name(self, obj) -> str:
         return f"{obj.user.first_name} {obj.user.last_name}".strip()
+
+    def get_payment_status(self, obj) -> str:
+        payment = getattr(obj, "payment", None)
+        return payment.status if payment else "pending"
+
+    def get_payment_method(self, obj):
+        payment = getattr(obj, "payment", None)
+        return payment.payment_method if payment else None
+
+    def get_payment_reference(self, obj):
+        payment = getattr(obj, "payment", None)
+        return payment.transaction_reference if payment else None
+
+    def get_estimated_delivery(self, obj):
+        delivery = getattr(obj, "delivery", None)
+        if delivery and delivery.delivered_at:
+            return delivery.delivered_at.isoformat()
+        return None
 
     def get_delivery(self, obj):
         delivery = getattr(obj, "delivery", None)
@@ -93,6 +107,7 @@ class OrderSerializer(serializers.ModelSerializer):
             "delivery_method_display": delivery.get_delivery_method_display(),
             "tracking_number": delivery.tracking_number,
             "shipping_fee": str(delivery.shipping_fee),
+            "estimated_delivery": self.get_estimated_delivery(obj),
             "shipped_at": delivery.shipped_at,
             "delivered_at": delivery.delivered_at,
         }
@@ -104,12 +119,19 @@ class OrderListSerializer(serializers.ModelSerializer):
     status_display = serializers.CharField(source="get_status_display", read_only=True)
     total_items = serializers.SerializerMethodField()
     customer_email = serializers.EmailField(source="user.email", read_only=True)
+    customer_name = serializers.SerializerMethodField()
+    payment_status = serializers.SerializerMethodField()
+    payment_method = serializers.SerializerMethodField()
+    payment_reference = serializers.SerializerMethodField()
+    delivery_status = serializers.SerializerMethodField()
+    estimated_delivery = serializers.SerializerMethodField()
 
     class Meta:
         model = Order
         fields = [
             "order_id",
             "customer_email",
+            "customer_name",
             "order_date",
             "status",
             "status_display",
@@ -117,12 +139,42 @@ class OrderListSerializer(serializers.ModelSerializer):
             "total_items",
             "shipping_address",
             "phone",
+            "payment_status",
+            "payment_method",
+            "payment_reference",
+            "delivery_status",
+            "estimated_delivery",
             "created_at",
         ]
         read_only_fields = fields
 
     def get_total_items(self, obj) -> int:
         return sum(item.quantity for item in obj.items.all())
+
+    def get_customer_name(self, obj) -> str:
+        return f"{obj.user.first_name} {obj.user.last_name}".strip()
+
+    def get_payment_status(self, obj) -> str:
+        payment = getattr(obj, "payment", None)
+        return payment.status if payment else "pending"
+
+    def get_payment_method(self, obj):
+        payment = getattr(obj, "payment", None)
+        return payment.payment_method if payment else None
+
+    def get_payment_reference(self, obj):
+        payment = getattr(obj, "payment", None)
+        return payment.transaction_reference if payment else None
+
+    def get_delivery_status(self, obj):
+        delivery = getattr(obj, "delivery", None)
+        return delivery.status if delivery else None
+
+    def get_estimated_delivery(self, obj):
+        delivery = getattr(obj, "delivery", None)
+        if delivery and delivery.delivered_at:
+            return delivery.delivered_at.isoformat()
+        return None
 
 
 class OrderCheckoutSerializer(serializers.Serializer):

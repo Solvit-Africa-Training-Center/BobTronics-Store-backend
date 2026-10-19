@@ -10,6 +10,7 @@ from rest_framework.views import APIView
 
 from apps.catalog.models import Product
 from apps.common.permissions import IsAdminRole
+from rest_framework.pagination import PageNumberPagination
 from .models import Discount
 from .serializers import (
     ActivePromotionSerializer,
@@ -17,6 +18,12 @@ from .serializers import (
     ProductDiscountDetailSerializer,
 )
 from .services import calculate_discount, calculate_discounted_price
+
+
+class PromotionPagination(PageNumberPagination):
+    page_size = 20
+    page_size_query_param = "page_size"
+    max_page_size = 100
 
 
 @extend_schema(tags=["Promotions - Admin"])
@@ -29,6 +36,7 @@ class DiscountAdminViewSet(viewsets.ModelViewSet):
     queryset = Discount.objects.select_related("product__category").all()
     serializer_class = DiscountSerializer
     permission_classes = [IsAdminRole]
+    pagination_class = PromotionPagination
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ["product", "discount_type", "is_active"]
     search_fields = ["product__name", "product__brand"]
@@ -50,6 +58,7 @@ class ActivePromotionsListView(generics.ListAPIView):
 
     serializer_class = ActivePromotionSerializer
     permission_classes = [AllowAny]
+    pagination_class = PromotionPagination
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ["product__name", "product__brand", "product__category__name"]
     ordering_fields = ["discount_value", "end_date", "created_at"]
