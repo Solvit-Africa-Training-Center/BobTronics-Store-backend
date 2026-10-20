@@ -12,6 +12,11 @@ class Category(models.Model):
     name = models.CharField(max_length=100, unique=True, db_index=True)
     description = models.TextField(blank=True)
     image = models.CharField(max_length=500, blank=True)
+    image_file = models.ImageField(
+        upload_to="category-images/%Y/%m/",
+        blank=True,
+        null=True,
+    )
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -77,7 +82,12 @@ class ProductImage(models.Model):
         related_name="images",
         db_index=True,
     )
-    image_url = models.CharField(max_length=500)
+    image_url = models.CharField(max_length=500, blank=True)
+    image_file = models.ImageField(
+        upload_to="product-images/%Y/%m/",
+        blank=True,
+        null=True,
+    )
     is_primary = models.BooleanField(default=False, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
