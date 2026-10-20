@@ -4,12 +4,14 @@ import django
 from decimal import Decimal
 from datetime import date, timedelta
 from pathlib import Path
+from uuid import uuid4
 
 # Add project root to sys.path
 BASE_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(BASE_DIR))
 
 from django.utils import timezone
+from django.db import transaction
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
 django.setup()
@@ -29,30 +31,14 @@ from apps.services.models import Service, ServiceType, ServiceStatus
 from apps.audit.models import AuditLog
 
 
-def run_verification():
+def _run_verification():
     print("=== STARTING BOB TRONICS MODEL VERIFICATION ===")
-
-    # Cleanup test records for idempotency
-    Payment.objects.filter(transaction_reference="MOMO-TX-20261012-0091").delete()
-    Delivery.objects.filter(tracking_number="BOB-EXP-889123").delete()
-    OrderItem.objects.all().delete()
-    Order.objects.all().delete()
-    CartItem.objects.all().delete()
-    WishlistItem.objects.all().delete()
-    Wishlist.objects.all().delete()
-    Feedback.objects.all().delete()
-    Discount.objects.all().delete()
-    ProductImage.objects.all().delete()
-    Product.objects.all().delete()
-    Category.objects.all().delete()
-    Service.objects.all().delete()
-    AuditLog.objects.all().delete()
-    User.objects.filter(email__in=["customer@bobtronics.com", "admin@bobtronics.com"]).delete()
+    run_id = uuid4().hex
 
     # 1. Accounts: User
     customer = User.objects.create_user(
 
-        email="customer@bobtronics.com",
+        email=f"customer-{run_id}@verification.invalid",
         password="SecurePassword123!",
         first_name="Pacifique",
         last_name="Ishimwe",
@@ -63,7 +49,7 @@ def run_verification():
     print(f"[PASS] Created Customer: {customer} (Role: {customer.role})")
 
     admin = User.objects.create_superuser(
-        email="admin@bobtronics.com",
+        email=f"admin-{run_id}@verification.invalid",
         password="AdminSuperPassword123!",
         first_name="Bob",
         last_name="Admin",
@@ -72,15 +58,15 @@ def run_verification():
 
     # 2. Catalog: Category & Products (Devices: Phones, Laptops, Machines, etc.)
     phones_cat = Category.objects.create(
-        name="Mobile Phones",
+        name=f"Mobile Phones {run_id}",
         description="Smartphones from Apple, Samsung, Google Pixel, and Sony",
     )
     laptops_cat = Category.objects.create(
-        name="Laptops",
+        name=f"Laptops {run_id}",
         description="High-performance laptops from HP, Dell, MacBook, Lenovo, and Acer",
     )
     machines_cat = Category.objects.create(
-        name="Electronic Machines & Printers",
+        name=f"Electronic Machines & Printers {run_id}",
         description="Printers, 3D printers, and office automation hardware",
     )
     print(f"[PASS] Created Categories: {phones_cat}, {laptops_cat}, {machines_cat}")
@@ -111,12 +97,10 @@ def run_verification():
     # Product Images
     img1 = ProductImage.objects.create(
         product=phone_prod,
-        image_url="https://images.bobtronics.com/products/iphone15promax-front.jpg",
         is_primary=True,
     )
     img2 = ProductImage.objects.create(
         product=phone_prod,
-        image_url="https://images.bobtronics.com/products/iphone15promax-back.jpg",
         is_primary=False,
     )
     print(f"[PASS] Added Product Images for {phone_prod.name}: Primary={img1.is_primary}, Gallery={img2.is_primary}")
@@ -180,7 +164,7 @@ def run_verification():
         order=order,
         amount=order.total_amount,
         payment_method=PaymentMethod.MTN_MOMO,
-        transaction_reference="MOMO-TX-20261012-0091",
+        transaction_reference=f"VERIFY-MOMO-{run_id}",
         status=PaymentStatus.PAID,
         payment_date=timezone.now(),
     )
@@ -193,7 +177,7 @@ def run_verification():
         order=order,
         delivery_address=order.shipping_address,
         delivery_method=DeliveryMethod.EXPRESS,
-        tracking_number="BOB-EXP-889123",
+        tracking_number=f"VERIFY-DELIVERY-{run_id}",
         status=DeliveryStatus.IN_TRANSIT,
         shipping_fee=Decimal("15.00"),
         shipped_at=timezone.now(),
@@ -224,6 +208,19 @@ def run_verification():
 
     print("\n=== ALL 15 ENTITIES VERIFIED SUCCESSFULLY IN DATABASE ===")
 
+
+
+def run_verification():
+    """Run model checks without leaving temporary rows in the configured DB."""
+    class RollbackVerification(Exception):
+        pass
+
+    try:
+        with transaction.atomic():
+            _run_verification()
+            raise RollbackVerification
+    except RollbackVerification:
+        print("Verification complete; temporary database records were rolled back.")
 
 
 if __name__ == "__main__":

@@ -11,6 +11,7 @@ ALLOWED_HOSTS = [host.strip() for host in config("ALLOWED_HOSTS", default="local
 INSTALLED_APPS = [
     "django.contrib.admin", "django.contrib.auth", "django.contrib.contenttypes",
     "django.contrib.sessions", "django.contrib.messages", "django.contrib.staticfiles",
+    "corsheaders",
     "apps.common.apps.CommonConfig", "apps.accounts.apps.AccountsConfig",
     "apps.catalog.apps.CatalogConfig", "apps.services.apps.ServicesConfig",
     "apps.cart.apps.CartConfig", "apps.wishlist.apps.WishlistConfig",
@@ -23,9 +24,18 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware", "django.contrib.sessions.middleware.SessionMiddleware",
+    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.common.CommonMiddleware", "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware", "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+]
+CORS_ALLOWED_ORIGINS = [
+    origin.strip()
+    for origin in config(
+        "CORS_ALLOWED_ORIGINS",
+        default="http://localhost:3000,http://127.0.0.1:3000",
+    ).split(",")
+    if origin.strip()
 ]
 ROOT_URLCONF = "config.urls"
 TEMPLATES = [{
@@ -46,8 +56,10 @@ DATABASES = {"default": {
 }}
 CACHES = {
     "default": {
-        "BACKEND": config("CACHE_BACKEND", default="django.core.cache.backends.locmem.LocMemCache"),
-        "LOCATION": config("CACHE_LOCATION", default="bobtronics-auth-cache"),
+        # Shared by workers using the same database; deployments can override
+        # this with a shared Redis or Memcached backend.
+        "BACKEND": config("CACHE_BACKEND", default="django.core.cache.backends.db.DatabaseCache"),
+        "LOCATION": config("CACHE_LOCATION", default="django_cache"),
     }
 }
 AUTH_PASSWORD_VALIDATORS = [
@@ -84,13 +96,19 @@ REST_FRAMEWORK = {
     "EXCEPTION_HANDLER": "config.settings.api_exception_handler",
     "DEFAULT_THROTTLE_RATES": {
         "auth_login": "5/minute",
+        "auth_register": "10/hour",
+        "auth_password_reset": "3/hour",
     },
 }
 SPECTACULAR_SETTINGS = {
     "TITLE": "BØB TRONICS Store API", "DESCRIPTION": "Backend API for the BØB TRONICS Store.",
     "VERSION": "1.0.0", "SERVE_INCLUDE_SCHEMA": False,
 }
-EMAIL_BACKEND = config("EMAIL_BACKEND", default="") or "django.core.mail.backends.console.EmailBackend"
+EMAIL_BACKEND = config("EMAIL_BACKEND", default="").strip() or (
+    "django.core.mail.backends.console.EmailBackend"
+    if DEBUG
+    else "django.core.mail.backends.smtp.EmailBackend"
+)
 EMAIL_HOST = config("EMAIL_HOST", default="")
 EMAIL_PORT = int(config("EMAIL_PORT", default="587") or 587)
 EMAIL_HOST_USER = config("EMAIL_HOST_USER", default="")

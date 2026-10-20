@@ -13,6 +13,7 @@ from apps.accounts.services import (
     blacklist_refresh_token,
     complete_password_reset,
     register_user,
+    request_activation_email,
     request_password_reset,
 )
 
@@ -30,8 +31,14 @@ def _login_lockout_keys(email, request):
 
 def _record_login_failure(email, request):
     failures_key, locked_key = _login_lockout_keys(email, request)
-    failures = cache.get(failures_key, 0) + 1
-    cache.set(failures_key, failures, timeout=LOGIN_LOCKOUT_SECONDS)
+    # Backend incr is atomic for shared cache services such as Redis. The
+    # add-first pattern also safely initializes a missing counter.
+    cache.add(failures_key, 0, timeout=LOGIN_LOCKOUT_SECONDS)
+    try:
+        failures = cache.incr(failures_key)
+    except ValueError:
+        cache.set(failures_key, 1, timeout=LOGIN_LOCKOUT_SECONDS)
+        failures = 1
     if failures >= LOGIN_FAILURE_LIMIT:
         cache.set(locked_key, True, timeout=LOGIN_LOCKOUT_SECONDS)
 
@@ -97,6 +104,14 @@ class ActivationSerializer(serializers.Serializer):
         if not activate_account(self.validated_data["uid"], self.validated_data["token"]):
             raise serializers.ValidationError("This activation link is invalid or expired.")
         return True
+
+
+class ActivationEmailRequestSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+
+    def save(self, **kwargs):
+        request_activation_email(self.validated_data["email"])
+        return {"message": "If the account needs activation, instructions are on the way."}
 
 
 class PasswordResetRequestSerializer(serializers.Serializer):

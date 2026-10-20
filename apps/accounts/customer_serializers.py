@@ -43,7 +43,7 @@ class CustomerProfileSerializer(serializers.ModelSerializer):
     def get_total_orders(self, obj) -> int:
         if hasattr(obj, "total_orders_count"):
             return obj.total_orders_count
-        return obj.orders.count()
+        return obj.orders.exclude(status="cancelled").count()
 
     def get_total_spent(self, obj) -> str:
         if hasattr(obj, "total_spent_amount") and obj.total_spent_amount is not None:
@@ -172,7 +172,7 @@ class AdminCustomerDetailSerializer(serializers.ModelSerializer):
         """Uses annotated count from queryset to avoid extra DB query."""
         if hasattr(obj, "total_orders_count"):
             return obj.total_orders_count
-        return obj.orders.count()
+        return obj.orders.exclude(status="cancelled").count()
 
     def get_total_spent(self, obj) -> str:
         """Uses annotated sum from queryset to avoid extra DB query."""

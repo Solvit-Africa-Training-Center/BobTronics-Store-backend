@@ -6,6 +6,7 @@ from rest_framework_simplejwt.views import TokenRefreshView
 
 from apps.accounts.serializers import (
     ActivationSerializer,
+    ActivationEmailRequestSerializer,
     LoginResponseSerializer,
     LoginSerializer,
     LogoutSerializer,
@@ -27,6 +28,14 @@ class LoginRateThrottle(AnonRateThrottle):
     """Limit unauthenticated login attempts by client IP."""
 
     scope = "auth_login"
+
+
+class RegistrationRateThrottle(AnonRateThrottle):
+    scope = "auth_register"
+
+
+class PasswordResetRateThrottle(AnonRateThrottle):
+    scope = "auth_password_reset"
 
 
 class LoginView(generics.GenericAPIView):
@@ -74,6 +83,7 @@ class LoginView(generics.GenericAPIView):
 class RegisterView(generics.GenericAPIView):
     serializer_class = RegisterSerializer
     permission_classes = [permissions.AllowAny]
+    throttle_classes = [RegistrationRateThrottle]
 
     def post(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -101,6 +111,17 @@ class ActivateView(generics.GenericAPIView):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response({"message": "Account activated."})
+
+
+class ActivationEmailRequestView(generics.GenericAPIView):
+    serializer_class = ActivationEmailRequestSerializer
+    permission_classes = [permissions.AllowAny]
+    throttle_classes = [RegistrationRateThrottle]
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        return Response(serializer.save())
 
 
 @extend_schema_view(get=extend_schema(
@@ -134,6 +155,7 @@ class CurrentUserView(generics.RetrieveAPIView):
 class PasswordResetRequestView(generics.GenericAPIView):
     serializer_class = PasswordResetRequestSerializer
     permission_classes = [permissions.AllowAny]
+    throttle_classes = [PasswordResetRateThrottle]
 
     def post(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)

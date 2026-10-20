@@ -12,6 +12,8 @@ class OrderStatus(models.TextChoices):
     SHIPPED = "shipped", "Shipped"
     DELIVERED = "delivered", "Delivered"
     CANCELLED = "cancelled", "Cancelled"
+    FAILED = "failed", "Failed"
+    RETURNED = "returned", "Returned"
 
 
 class Order(models.Model):
@@ -36,6 +38,13 @@ class Order(models.Model):
     total_amount = models.DecimalField(
         max_digits=12,
         decimal_places=2,
+        validators=[MinValueValidator(Decimal("0.00"))],
+    )
+    promo_code = models.CharField(max_length=50, blank=True)
+    promo_discount_amount = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00"),
         validators=[MinValueValidator(Decimal("0.00"))],
     )
     shipping_address = models.TextField()

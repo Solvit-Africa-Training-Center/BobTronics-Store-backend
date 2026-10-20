@@ -60,8 +60,32 @@ urlpatterns = [
     # Customer Profile & Address API (Member C — Day 2)
     path("api/v1/customers/", include("apps.accounts.customer_urls")),
 
+    # Admin dashboard, reporting, and store configuration APIs
+    path("api/v1/", include("apps.common.urls")),
+
+    # Customer orders and admin order management
+    path("api/v1/orders/", include("apps.orders.urls")),
+
+    # Customer delivery tracking and admin fulfillment management
+    path("api/v1/deliveries/", include("apps.deliveries.urls")),
+
+    # Customer saved products
+    path("api/v1/wishlist/", include("apps.wishlist.urls")),
+
+    # Customer service requests and admin workflow
+    path("api/v1/services/", include("apps.services.urls")),
+
+    # Product discounts and admin promo management
+    path("api/v1/promotions/", include("apps.promotions.urls")),
+
+    # Customer cart promo validation
+    path("api/v1/cart/", include("apps.cart.urls")),
+
     # Catalog API (public read-only + admin management)
     path("api/v1/catalog/", include("apps.catalog.urls")),
+
+    # Customer reviews and admin moderation
+    path("api/v1/reviews/", include("apps.reviews.urls")),
 
     # OpenAPI Schema & Interactive Documentation
     path(

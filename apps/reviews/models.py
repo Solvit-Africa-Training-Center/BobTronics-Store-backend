@@ -3,6 +3,12 @@ from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
 
+class ReviewStatus(models.TextChoices):
+    PENDING = "pending", "Pending"
+    APPROVED = "approved", "Approved"
+    HIDDEN = "hidden", "Hidden"
+
+
 class Feedback(models.Model):
     """
     Customer ratings and reviews for electronic devices.
@@ -26,6 +32,12 @@ class Feedback(models.Model):
         help_text="Rating score from 1 (poor) to 5 (excellent)",
     )
     comment = models.TextField(blank=True)
+    status = models.CharField(
+        max_length=20,
+        choices=ReviewStatus.choices,
+        default=ReviewStatus.PENDING,
+        db_index=True,
+    )
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
 

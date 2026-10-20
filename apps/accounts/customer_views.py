@@ -40,7 +40,7 @@ class CustomerProfileView(generics.RetrieveUpdateAPIView):
         user = (
             User.objects.filter(pk=self.request.user.pk)
             .annotate(
-                total_orders_count=Count("orders"),
+                total_orders_count=Count("orders", filter=~Q(orders__status="cancelled")),
                 total_spent_amount=Coalesce(
                     Sum("orders__total_amount", filter=~Q(orders__status="cancelled")),
                     Value(Decimal("0.00")),
@@ -188,7 +188,7 @@ class AdminCustomerListView(generics.ListAPIView):
                 "is_active",
                 "created_at",
             )
-            .annotate(total_orders=Count("orders"))
+            .annotate(total_orders=Count("orders", filter=~Q(orders__status="cancelled")))
         )
 
     @extend_schema(
@@ -221,7 +221,7 @@ class AdminCustomerDetailView(generics.RetrieveAPIView):
         return (
             User.objects.filter(role=Role.CUSTOMER)
             .annotate(
-                total_orders_count=Count("orders"),
+                total_orders_count=Count("orders", filter=~Q(orders__status="cancelled")),
                 total_spent_amount=Coalesce(
                     Sum(
                         "orders__total_amount",

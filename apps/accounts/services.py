@@ -41,13 +41,24 @@ def register_user(*, email, password, first_name, last_name, phone="", residence
         residence=residence,
         is_active=False,
     )
+    transaction.on_commit(lambda: _send_activation_email(user), robust=True)
+    return user
+
+
+def _send_activation_email(user):
     _send_account_email(
         user,
         "Activate your BobTronics account",
         "Complete account validation using the details below.",
         "/api/v1/accounts/activate/",
     )
-    return user
+
+
+def request_activation_email(email):
+    """Resend activation instructions without revealing account existence."""
+    user = User.objects.filter(email__iexact=email, is_active=False).first()
+    if user is not None:
+        transaction.on_commit(lambda: _send_activation_email(user), robust=True)
 
 
 def _user_from_uid(uid):

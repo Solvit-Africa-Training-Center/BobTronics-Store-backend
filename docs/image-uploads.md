@@ -29,6 +29,7 @@ images as files before applying the migration if you need to keep them.
 ## Storage
 
 In development, files are saved under `media/` and served at `/media/` when
-`DEBUG=True`. In production, set `MEDIA_ROOT` to the mount path of a persistent
-disk or configure durable object storage. A container's default filesystem can
-be cleared during redeploys, which would remove locally stored uploads.
+`DEBUG=True`. Production media serving is not configured in this project yet.
+Setting `MEDIA_ROOT` to a persistent disk preserves files, but does not itself
+serve them. Production needs a media server or object-storage backend before
+these image URLs can be used.
