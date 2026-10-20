@@ -1,4 +1,7 @@
+import base64
+
 from django.contrib.auth import get_user_model
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
@@ -8,6 +11,13 @@ from apps.accounts.models import Role
 from .models import Category, Product, ProductImage
 
 User = get_user_model()
+
+
+def uploaded_test_image():
+    content = base64.b64decode(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jQWQAAAAASUVORK5CYII="
+    )
+    return SimpleUploadedFile("test.png", content, content_type="image/png")
 
 
 class CatalogTestBase(APITestCase):
@@ -70,12 +80,12 @@ class CatalogTestBase(APITestCase):
 
         cls.primary_image = ProductImage.objects.create(
             product=cls.phone,
-            image_url="https://example.com/galaxy-main.jpg",
+            image_file=uploaded_test_image(),
             is_primary=True,
         )
         ProductImage.objects.create(
             product=cls.phone,
-            image_url="https://example.com/galaxy-side.jpg",
+            image_file=uploaded_test_image(),
             is_primary=False,
         )
 
@@ -113,9 +123,9 @@ class PublicCatalogTests(CatalogTestBase):
 
     def test_list_shows_primary_image(self):
         response = self.client.get(reverse("product-list"), {"search": "Galaxy"})
-        self.assertEqual(
+        self.assertIn(
+            "/media/product-images/",
             response.data["results"][0]["primary_image"],
-            "https://example.com/galaxy-main.jpg",
         )
 
     def test_search_by_brand(self):
@@ -278,10 +288,10 @@ class AdminCatalogCrudTests(CatalogTestBase):
             reverse("admin-image-list"),
             {
                 "product": self.phone.pk,
-                "image_url": "https://example.com/galaxy-new.jpg",
+                "image_file": uploaded_test_image(),
                 "is_primary": True,
             },
-            format="json",
+            format="multipart",
         )
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
@@ -418,21 +428,20 @@ class ProductValidationTests(CatalogTestBase):
 
     # ---- images ----
 
-    def test_image_url_must_be_http(self):
+    def test_image_url_is_not_accepted(self):
         response = self.client.post(
             reverse("admin-image-list"),
             {"product": self.laptop.pk, "image_url": "javascript:alert(1)"},
             format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("image_url", response.data)
+        self.assertIn("image_file", response.data)
 
-    def test_duplicate_image_url_is_rejected(self):
+    def test_image_file_is_required(self):
         response = self.client.post(
             reverse("admin-image-list"),
             {
                 "product": self.phone.pk,
-                "image_url": "https://example.com/galaxy-main.jpg",
             },
             format="json",
         )
@@ -443,10 +452,10 @@ class ProductValidationTests(CatalogTestBase):
             reverse("admin-image-list"),
             {
                 "product": self.laptop.pk,
-                "image_url": "https://example.com/thinkbook.jpg",
+                "image_file": uploaded_test_image(),
                 "is_primary": False,
             },
-            format="json",
+            format="multipart",
         )
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertTrue(response.data["is_primary"])
@@ -456,9 +465,9 @@ class ProductValidationTests(CatalogTestBase):
             reverse("admin-image-list"),
             {
                 "product": self.phone.pk,
-                "image_url": "https://example.com/galaxy-back.jpg",
+                "image_file": uploaded_test_image(),
             },
-            format="json",
+            format="multipart",
         )
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertFalse(response.data["is_primary"])
@@ -467,15 +476,15 @@ class ProductValidationTests(CatalogTestBase):
         # the phone already has 2 images, add 8 more to reach 10
         for i in range(8):
             ProductImage.objects.create(
-                product=self.phone, image_url=f"https://example.com/extra-{i}.jpg"
+                product=self.phone, image_file=uploaded_test_image()
             )
         response = self.client.post(
             reverse("admin-image-list"),
             {
                 "product": self.phone.pk,
-                "image_url": "https://example.com/one-too-many.jpg",
+                "image_file": uploaded_test_image(),
             },
-            format="json",
+            format="multipart",
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("product", response.data)

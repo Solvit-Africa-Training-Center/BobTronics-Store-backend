@@ -1,7 +1,7 @@
 # Catalog image uploads
 
-Catalog admins can upload product and category images instead of storing an
-external image URL. Existing URL-based records continue to work.
+Catalog admins upload product and category image files. External image URL
+fields are no longer accepted or stored.
 
 ## Product images
 
@@ -11,17 +11,20 @@ Send a `multipart/form-data` request to
 include `is_primary=true`. The first image for a product becomes primary
 automatically.
 
-The response keeps the existing `image_url` field and returns the uploaded
-image URL there. Uploads are limited to 5 MB. To replace an uploaded image,
-send `PATCH` to `/api/v1/catalog/admin/images/{image_id}/` with a new
-`image_file`.
+The response returns the uploaded file path in `image_file`; product listings
+return the primary uploaded image in `primary_image`. Uploads are limited to
+5 MB. To replace an uploaded image, send `PATCH` to
+`/api/v1/catalog/admin/images/{image_id}/` with a new `image_file`.
 
 ## Category images
 
 Send `multipart/form-data` to `POST /api/v1/catalog/admin/categories/` with
-the category fields and `image_file`. The response keeps the existing `image`
-field and returns the uploaded image URL there. Existing category image URLs
-remain supported.
+the category fields and `image_file`. The response returns the uploaded file
+path in `image_file`.
+
+Applying migration `0003_remove_catalog_image_urls` removes the old URL columns.
+Any external image URLs stored in those columns are discarded; upload those
+images as files before applying the migration if you need to keep them.
 
 ## Storage
 

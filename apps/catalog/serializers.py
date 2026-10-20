@@ -30,7 +30,6 @@ def delete_replaced_image(old_file, new_file):
 
 class CategorySerializer(serializers.ModelSerializer):
     image_file = serializers.ImageField(
-        write_only=True,
         required=False,
         allow_null=True,
     )
@@ -41,7 +40,6 @@ class CategorySerializer(serializers.ModelSerializer):
             "category_id",
             "name",
             "description",
-            "image",
             "image_file",
             "created_at",
             "updated_at",
@@ -57,37 +55,13 @@ class CategorySerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Image files must be 5 MB or smaller.")
         return value
 
-    def validate(self, attrs):
-        if attrs.get("image_file") and attrs.get("image"):
-            raise serializers.ValidationError(
-                {"image": "Provide an image URL or upload a file, not both."}
-            )
-        return attrs
-
-    def create(self, validated_data):
-        if validated_data.get("image_file"):
-            validated_data["image"] = ""
-        return super().create(validated_data)
-
     def update(self, instance, validated_data):
         old_file = instance.image_file
         old_name = old_file.name if old_file else None
-
-        if validated_data.get("image_file"):
-            validated_data["image"] = ""
-        elif "image" in validated_data:
-            validated_data["image_file"] = None
-
         instance = super().update(instance, validated_data)
         if old_name:
             delete_replaced_image(old_file, instance.image_file)
         return instance
-
-    def to_representation(self, instance):
-        data = super().to_representation(instance)
-        if instance.image_file:
-            data["image"] = uploaded_image_url(self, instance.image_file)
-        return data
 
     def validate_name(self, value):
         value = clean_text(value)
@@ -110,7 +84,6 @@ class ProductImageSerializer(serializers.ModelSerializer):
     """Full serializer. Use for the admin image endpoints (needs `product`)."""
 
     image_file = serializers.ImageField(
-        write_only=True,
         required=False,
         allow_null=True,
     )
@@ -120,7 +93,6 @@ class ProductImageSerializer(serializers.ModelSerializer):
         fields = [
             "image_id",
             "product",
-            "image_url",
             "image_file",
             "is_primary",
             "created_at",
@@ -130,16 +102,6 @@ class ProductImageSerializer(serializers.ModelSerializer):
             "created_at",
         ]
 
-    def validate_image_url(self, value):
-        value = value.strip()
-        if not value:
-            return value
-        if not value.lower().startswith(("http://", "https://")):
-            raise serializers.ValidationError(
-                "Enter a valid image URL starting with http:// or https://."
-            )
-        return value
-
     def validate_image_file(self, value):
         if value and value.size > MAX_IMAGE_UPLOAD_BYTES:
             raise serializers.ValidationError("Image files must be 5 MB or smaller.")
@@ -148,31 +110,15 @@ class ProductImageSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         instance = self.instance
         product = attrs.get("product", getattr(instance, "product", None))
-        url = attrs.get("image_url", getattr(instance, "image_url", None))
         image_file = attrs.get("image_file", getattr(instance, "image_file", None))
-
-        if attrs.get("image_file") and attrs.get("image_url"):
+        if instance is None and not image_file:
             raise serializers.ValidationError(
-                {"image_url": "Provide an image URL or upload a file, not both."}
-            )
-        if attrs.get("image_file"):
-            url = ""
-        elif "image_url" in attrs:
-            image_file = None
-
-        if not url and not image_file:
-            raise serializers.ValidationError(
-                {"image_file": "Upload an image file or provide an image URL."}
+                {"image_file": "Upload an image file."}
             )
 
         siblings = ProductImage.objects.filter(product=product)
         if instance:
             siblings = siblings.exclude(pk=instance.pk)
-
-        if url and siblings.filter(image_url=url).exists():
-            raise serializers.ValidationError(
-                {"image_url": "This image is already added to the product."}
-            )
 
         if instance is None and siblings.count() >= MAX_IMAGES_PER_PRODUCT:
             raise serializers.ValidationError(
@@ -185,8 +131,6 @@ class ProductImageSerializer(serializers.ModelSerializer):
         return attrs
 
     def create(self, validated_data):
-        if validated_data.get("image_file"):
-            validated_data["image_url"] = ""
         if not ProductImage.objects.filter(product=validated_data["product"]).exists():
             validated_data["is_primary"] = True
         return super().create(validated_data)
@@ -195,35 +139,18 @@ class ProductImageSerializer(serializers.ModelSerializer):
         old_file = instance.image_file
         old_name = old_file.name if old_file else None
 
-        if validated_data.get("image_file"):
-            validated_data["image_url"] = ""
-        elif "image_url" in validated_data:
-            validated_data["image_file"] = None
-
         instance = super().update(instance, validated_data)
         if old_name:
             delete_replaced_image(old_file, instance.image_file)
         return instance
-
-    def to_representation(self, instance):
-        data = super().to_representation(instance)
-        if instance.image_file:
-            data["image_url"] = uploaded_image_url(self, instance.image_file)
-        return data
 
 class ProductImageNestedSerializer(serializers.ModelSerializer):
     """Used inside a product payload, where `product` would be redundant."""
 
     class Meta:
         model = ProductImage
-        fields = ["image_id", "image_url", "is_primary"]
+        fields = ["image_id", "image_file", "is_primary"]
         read_only_fields = fields
-
-    def to_representation(self, instance):
-        data = super().to_representation(instance)
-        if instance.image_file:
-            data["image_url"] = uploaded_image_url(self, instance.image_file)
-        return data
 
 
 class ProductListSerializer(serializers.ModelSerializer):
@@ -258,7 +185,7 @@ class ProductListSerializer(serializers.ModelSerializer):
             return None
         if primary.image_file:
             return uploaded_image_url(self, primary.image_file)
-        return primary.image_url or None
+        return None
 
 
 class ProductSerializer(serializers.ModelSerializer):
