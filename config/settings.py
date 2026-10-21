@@ -10,7 +10,14 @@ except ImportError:
 BASE_DIR = Path(__file__).resolve().parent.parent
 DEBUG = config("DEBUG", default=False, cast=bool)
 SECRET_KEY = config("SECRET_KEY", default="")
-GOOGLE_OAUTH_CLIENT_ID = config("GOOGLE_OAUTH_CLIENT_ID", default="").strip()
+GOOGLE_OAUTH_CLIENT_ID = config(
+    "GOOGLE_OAUTH_CLIENT_ID",
+    default=config("GOOGLE_CLIENT_ID", default=""),
+).strip()
+GOOGLE_OAUTH_CLIENT_SECRET = config(
+    "GOOGLE_OAUTH_CLIENT_SECRET",
+    default=config("GOOGLE_CLIENT_SECRET", default=""),
+).strip()
 if not SECRET_KEY and not DEBUG:
     raise ValueError("SECRET_KEY must be set when DEBUG is False.")
 
@@ -60,7 +67,7 @@ CORS_ALLOWED_ORIGINS = [
     origin.strip()
     for origin in config(
         "CORS_ALLOWED_ORIGINS",
-        default="http://localhost:3000,http://127.0.0.1:3000,http://localhost:5173,http://127.0.0.1:5173",
+        default="http://localhost:3000,http://127.0.0.1:3000,http://localhost:5173,http://127.0.0.1:5173,http://localhost:8080,http://127.0.0.1:8080,http://localhost:8081,http://127.0.0.1:8081",
     ).split(",")
     if origin.strip()
 ]
@@ -72,7 +79,7 @@ CSRF_TRUSTED_ORIGINS = [
     origin.strip()
     for origin in config(
         "CSRF_TRUSTED_ORIGINS",
-        default="http://localhost:3000,http://127.0.0.1:3000,http://localhost:5173,http://127.0.0.1:5173",
+        default="http://localhost:3000,http://127.0.0.1:3000,http://localhost:5173,http://127.0.0.1:5173,http://localhost:8080,http://127.0.0.1:8080,http://localhost:8081,http://127.0.0.1:8081",
     ).split(",")
     if origin.strip()
 ]
