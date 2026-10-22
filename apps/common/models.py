@@ -14,47 +14,25 @@ class TimeStampedModel(models.Model):
         abstract = True
 
 
-class ContactStatus(models.TextChoices):
-    PENDING = "pending", "Pending"
-    READ = "read", "Read"
-    REPLIED = "replied", "Replied"
-    ARCHIVED = "archived", "Archived"
-
-
 class ContactMessage(TimeStampedModel):
     """
-    Contact form submissions sent by visitors and customers to the store admin.
+    Contact form submissions sent by authenticated customers to store administrators.
     """
-    name = models.CharField(max_length=255)
-    email = models.EmailField()
-    phone = models.CharField(max_length=50, blank=True, default="")
-    subject = models.CharField(max_length=255, default="General Inquiry")
-    message = models.TextField()
-    attachment = models.FileField(
-        upload_to="contact_attachments/",
-        null=True,
-        blank=True,
-        help_text="Optional document or screenshot attachment.",
-    )
-    agreed_to_privacy_policy = models.BooleanField(
-        default=True,
-        help_text="Indicates whether sender consented to privacy policy.",
-    )
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
+        on_delete=models.CASCADE,
         related_name="contact_messages",
     )
-    status = models.CharField(
-        max_length=20,
-        choices=ContactStatus.choices,
-        default=ContactStatus.PENDING,
-        db_index=True,
+    full_name = models.CharField(max_length=255)
+    email = models.EmailField()
+    phone_number = models.CharField(max_length=50, blank=True, default="")
+    message = models.TextField()
+    agree_to_privacy_policy = models.BooleanField(
+        default=True,
+        help_text="Indicates whether the customer agreed to the privacy policy.",
     )
-    admin_notes = models.TextField(blank=True, default="")
-    replied_at = models.DateTimeField(null=True, blank=True)
+    is_read = models.BooleanField(default=False, db_index=True)
+    read_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         db_table = "contact_messages"
@@ -62,11 +40,20 @@ class ContactMessage(TimeStampedModel):
         verbose_name_plural = "Contact Messages"
         ordering = ["-created_at"]
         indexes = [
-            models.Index(fields=["status", "created_at"], name="idx_contact_status_created"),
+            models.Index(fields=["user", "created_at"], name="idx_contact_user_created"),
+            models.Index(fields=["is_read", "created_at"], name="idx_contact_read_created"),
         ]
 
     def __str__(self):
-        return f"[{self.get_status_display()}] {self.name} - {self.subject}"
+        status = "Read" if self.is_read else "Unread"
+        return f"[{status}] {self.full_name} ({self.email})"
+
+    def mark_as_read(self):
+        if not self.is_read:
+            from django.utils import timezone
+            self.is_read = True
+            self.read_at = timezone.now()
+            self.save(update_fields=["is_read", "read_at"])
 
 
 class NotificationType(models.TextChoices):
@@ -143,5 +130,3 @@ class Notification(TimeStampedModel):
             self.is_read = True
             self.read_at = timezone.now()
             self.save(update_fields=["is_read", "read_at"])
-
-
