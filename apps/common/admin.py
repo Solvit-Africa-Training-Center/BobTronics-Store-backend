@@ -7,51 +7,34 @@ from apps.common.models import ContactMessage, Notification
 class ContactMessageAdmin(admin.ModelAdmin):
     list_display = (
         "id",
-        "name",
+        "full_name",
         "email",
-        "subject",
-        "status",
-        "attachment",
-        "agreed_to_privacy_policy",
+        "phone_number",
         "user",
+        "is_read",
+        "agree_to_privacy_policy",
         "created_at",
     )
-    list_filter = ("status", "agreed_to_privacy_policy", "created_at")
-    search_fields = ("name", "email", "subject", "message", "phone")
+    list_filter = ("is_read", "agree_to_privacy_policy", "created_at")
+    search_fields = ("full_name", "email", "phone_number", "message", "user__email")
     readonly_fields = (
-        "name",
-        "email",
-        "phone",
-        "subject",
-        "message",
-        "attachment",
-        "agreed_to_privacy_policy",
+        "id",
         "user",
+        "full_name",
+        "email",
+        "phone_number",
+        "message",
+        "agree_to_privacy_policy",
+        "is_read",
+        "read_at",
         "created_at",
         "updated_at",
     )
     ordering = ("-created_at",)
-    fieldsets = (
-        ("Inquiry Details", {
-            "fields": (
-                "name",
-                "email",
-                "phone",
-                "subject",
-                "message",
-                "attachment",
-                "agreed_to_privacy_policy",
-                "user",
-            )
-        }),
-        ("Admin Review", {
-            "fields": ("status", "admin_notes", "replied_at")
-        }),
-        ("Metadata", {
-            "fields": ("created_at", "updated_at"),
-            "classes": ("collapse",),
-        }),
-    )
+
+    def has_change_permission(self, request, obj=None):
+        # Admin can view/read all messages, but cannot modify customer message content
+        return False
 
 
 @admin.register(Notification)

@@ -3,16 +3,19 @@ from django.urls import path
 from apps.common.views import (
     AdminContactMessageDetailView,
     AdminContactMessageListView,
-    ContactFormView,
+    ContactMessageDetailView,
+    ContactMessageListCreateView,
 )
 
 app_name = "common"
 
 urlpatterns = [
-    # Public contact submission: POST /api/v1/contact/
-    path("", ContactFormView.as_view(), name="contact-submit"),
+    # Customer endpoints: List past messages, send new message
+    path("", ContactMessageListCreateView.as_view(), name="contact-list-create"),
+    # Customer endpoints: View detail, edit, delete own message
+    path("<int:pk>/", ContactMessageDetailView.as_view(), name="contact-detail"),
 
-    # Admin management: GET/PATCH /api/v1/contact/admin/messages/
+    # Admin dashboard endpoints: View all messages, read message detail
     path("admin/messages/", AdminContactMessageListView.as_view(), name="contact-admin-list"),
     path("admin/messages/<int:pk>/", AdminContactMessageDetailView.as_view(), name="contact-admin-detail"),
 ]

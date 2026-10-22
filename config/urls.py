@@ -49,12 +49,6 @@ class DirectLoginView(LoginView):
     pass
 
 
-from apps.common.views import ContactFormView
-
-
-@extend_schema(exclude=True)
-class DirectContactFormView(ContactFormView):
-    pass
 
 
 urlpatterns = [
@@ -118,11 +112,9 @@ urlpatterns = [
 
     # Contact Us & Customer Inquiries API
     path("api/v1/contact/", include("apps.common.urls")),
-    path("contact/", DirectContactFormView.as_view(), name="contact-submit-direct"),
 
     # User Notifications API
     path("api/v1/notifications/", include("apps.common.notifications_urls")),
-    path("notifications/", include("apps.common.notifications_urls")),
 
     # OpenAPI Schema & Interactive Documentation
     path(

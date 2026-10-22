@@ -1,35 +1,40 @@
 from django.utils import timezone
 from drf_spectacular.utils import OpenApiExample, OpenApiResponse, extend_schema, extend_schema_view
 from rest_framework import filters, generics, permissions, status
-from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
 
-from apps.common.models import ContactMessage, ContactStatus, Notification
+from apps.common.models import ContactMessage, Notification
 from apps.common.permissions import IsAdminRole
 from apps.common.serializers import (
     ContactMessageAdminSerializer,
-    ContactMessageCreateSerializer,
-    ContactMessageResponseSerializer,
+    ContactMessageSerializer,
     NotificationSerializer,
     NotificationUnreadCountSerializer,
 )
 from apps.common.services import send_contact_form_notifications
 
 
+# ============================================================================
+# CONTACT MESSAGES API (CUSTOMER)
+# ============================================================================
+
 @extend_schema_view(
+    get=extend_schema(
+        operation_id="contact_customer_list",
+        summary="List Customer Messages",
+        description="Retrieves messages sent by the authenticated customer.",
+        responses={200: ContactMessageSerializer(many=True)},
+        tags=["Contact"],
+    ),
     post=extend_schema(
-        operation_id="common_contact_form_submit",
-        summary="Submit Contact Form Message",
-        description=(
-            "Accepts contact inquiries from customers or site visitors, notifies "
-            "administrators via email (with attachments if uploaded), and sends an "
-            "acknowledgment receipt to the sender. Supports both JSON and multipart form data."
-        ),
-        request=ContactMessageCreateSerializer,
+        operation_id="contact_customer_create",
+        summary="Send Contact Message",
+        description="Allows an authenticated customer to send a message to store administrators.",
+        request=ContactMessageSerializer,
         responses={
             201: OpenApiResponse(
                 description="Message sent successfully.",
-                response=ContactMessageResponseSerializer,
+                response=ContactMessageSerializer,
             ),
             400: OpenApiResponse(description="Validation error."),
         },
@@ -41,43 +46,47 @@ from apps.common.services import send_contact_form_notifications
                     "full_name": "David Shema",
                     "email": "david.shema@example.com",
                     "phone_number": "+250 78 555 0184",
-                    "how_can_we_help": "Product advice",
                     "message": "I'm looking for a laptop for design work. Can your team help me choose the right configuration?",
                     "agree_to_privacy_policy": True,
                 },
             ),
         ],
         tags=["Contact"],
-    )
+    ),
 )
-class ContactFormView(generics.CreateAPIView):
+class ContactMessageListCreateView(generics.ListCreateAPIView):
     """
-    Public endpoint for visitors and customers to send a message to store administrators.
-    Accepts both JSON and Multipart Form data (for file attachments).
+    Authenticated customer endpoint to view their previous messages and send a new message.
     """
 
-    serializer_class = ContactMessageCreateSerializer
-    permission_classes = [permissions.AllowAny]
-    parser_classes = [MultiPartParser, FormParser, JSONParser]
+    serializer_class = ContactMessageSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return ContactMessage.objects.filter(user=self.request.user).order_by("-created_at")
 
     def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
+        data = request.data.copy() if hasattr(request.data, "copy") else dict(request.data)
+
+        # Auto-fill full_name and email from user profile if not provided
+        if not data.get("full_name"):
+            user_fullname = f"{request.user.first_name} {request.user.last_name}".strip()
+            data["full_name"] = user_fullname or request.user.username
+        if not data.get("email"):
+            data["email"] = request.user.email
+
+        serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
+        contact_message = serializer.save(user=request.user)
 
-        user = request.user if request.user and request.user.is_authenticated else None
-        contact_message = serializer.save(user=user)
-
-        # Dispatch emails to admin and sender + record audit log + send in-app notification
+        # Notify administrator via email and record audit event
         send_contact_form_notifications(contact_message, request=request)
 
-        response_data = ContactMessageResponseSerializer(
-            contact_message, context={"request": request}
-        ).data
         return Response(
             {
                 "success": True,
                 "message": "Your message has been sent successfully. We will get back to you soon.",
-                "data": response_data,
+                "data": serializer.data,
             },
             status=status.HTTP_201_CREATED,
         )
@@ -85,85 +94,139 @@ class ContactFormView(generics.CreateAPIView):
 
 @extend_schema_view(
     get=extend_schema(
-        operation_id="common_admin_contact_list",
-        summary="List Contact Inquiries (Admin)",
-        description="Allows staff and administrators to review contact messages submitted through the website.",
-        responses={200: ContactMessageAdminSerializer(many=True)},
+        operation_id="contact_customer_detail",
+        summary="Get Customer Message Detail",
         tags=["Contact"],
-    )
+    ),
+    patch=extend_schema(
+        operation_id="contact_customer_update",
+        summary="Edit Customer Message",
+        description="Allows customer to edit their message.",
+        tags=["Contact"],
+    ),
+    put=extend_schema(
+        operation_id="contact_customer_replace",
+        summary="Replace Customer Message",
+        tags=["Contact"],
+    ),
+    delete=extend_schema(
+        operation_id="contact_customer_delete",
+        summary="Delete Customer Message",
+        description="Allows customer to delete their message.",
+        tags=["Contact"],
+    ),
+)
+class ContactMessageDetailView(generics.RetrieveUpdateDestroyAPIView):
+    """
+    Customer endpoint allowing the sender to view, edit, and delete their own contact message.
+    """
+
+    serializer_class = ContactMessageSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return ContactMessage.objects.filter(user=self.request.user)
+
+
+# ============================================================================
+# CONTACT MESSAGES API (ADMIN DASHBOARD)
+# ============================================================================
+
+@extend_schema_view(
+    get=extend_schema(
+        operation_id="contact_admin_list",
+        summary="List All Contact Messages (Admin Dashboard)",
+        description="Admin dashboard endpoint to view all customer messages. Supports search and is_read filtering.",
+        responses={200: ContactMessageAdminSerializer(many=True)},
+        tags=["Contact (Admin)"],
+    ),
 )
 class AdminContactMessageListView(generics.ListAPIView):
-    """Admin-only endpoint to list all received contact messages."""
+    """
+    Admin dashboard endpoint to list all customer messages.
+    """
 
     serializer_class = ContactMessageAdminSerializer
     permission_classes = [IsAdminRole]
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
-    search_fields = ["name", "email", "phone", "subject", "message"]
-    ordering_fields = ["created_at", "status"]
+    search_fields = ["full_name", "email", "phone_number", "message", "user__email"]
+    ordering_fields = ["created_at", "is_read"]
     ordering = ["-created_at"]
 
     def get_queryset(self):
         queryset = ContactMessage.objects.select_related("user").all()
-        status_param = self.request.query_params.get("status")
-        if status_param and status_param in ContactStatus.values:
-            queryset = queryset.filter(status=status_param)
+        is_read_param = self.request.query_params.get("is_read")
+        if is_read_param is not None:
+            if is_read_param.lower() in ("true", "1"):
+                queryset = queryset.filter(is_read=True)
+            elif is_read_param.lower() in ("false", "0"):
+                queryset = queryset.filter(is_read=False)
         return queryset
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        unread_count = ContactMessage.objects.filter(is_read=False).count()
+
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            response = self.get_paginated_response(serializer.data)
+            response.data["success"] = True
+            response.data["unread_count"] = unread_count
+            return response
+
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(
+            {
+                "success": True,
+                "unread_count": unread_count,
+                "results": serializer.data,
+            },
+            status=status.HTTP_200_OK,
+        )
 
 
 @extend_schema_view(
     get=extend_schema(
-        operation_id="common_admin_contact_detail",
-        summary="Get Contact Inquiry Detail (Admin)",
-        tags=["Contact"],
-    ),
-    patch=extend_schema(
-        operation_id="common_admin_contact_update",
-        summary="Update Contact Inquiry Status/Notes (Admin)",
-        tags=["Contact"],
+        operation_id="contact_admin_detail",
+        summary="Read Contact Message Detail (Admin Dashboard)",
+        description="Admin reads customer message. Automatically marks message as read. Admin cannot edit the message content.",
+        responses={200: ContactMessageAdminSerializer},
+        tags=["Contact (Admin)"],
     ),
     delete=extend_schema(
-        operation_id="common_admin_contact_delete",
-        summary="Delete Contact Inquiry (Admin)",
-        tags=["Contact"],
+        operation_id="contact_admin_delete",
+        summary="Delete Contact Message (Admin)",
+        description="Allows admin to remove a message from dashboard.",
+        tags=["Contact (Admin)"],
     ),
 )
-class AdminContactMessageDetailView(generics.RetrieveUpdateDestroyAPIView):
-    """Admin-only endpoint to view, update status, and manage contact messages."""
+class AdminContactMessageDetailView(generics.RetrieveDestroyAPIView):
+    """
+    Admin endpoint to read customer message.
+    Cannot edit (no PUT/PATCH allowed) to guarantee customer message integrity.
+    Automatically marks the message as read upon opening.
+    """
 
     serializer_class = ContactMessageAdminSerializer
     permission_classes = [IsAdminRole]
     queryset = ContactMessage.objects.select_related("user").all()
 
-    def perform_update(self, serializer):
-        new_status = serializer.validated_data.get("status")
-        instance = serializer.instance
-        if new_status == ContactStatus.REPLIED and not instance.replied_at:
-            updated = serializer.save(replied_at=timezone.now())
-        else:
-            updated = serializer.save()
-
-        if updated.user and new_status == ContactStatus.REPLIED:
-            from apps.common.models import NotificationPriority, NotificationType
-            from apps.common.services import create_user_notification
-
-            create_user_notification(
-                user=updated.user,
-                title="Response to Your Inquiry",
-                message=f"An administrator responded to your message: '{updated.subject}'.",
-                notification_type=NotificationType.CONTACT,
-                action_url="/contact",
-                data={
-                    "contact_id": updated.pk,
-                    "subject": updated.subject,
-                    "status": updated.status,
-                    "admin_notes": updated.admin_notes,
-                },
-                priority=NotificationPriority.SUCCESS,
-            )
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        instance.mark_as_read()
+        serializer = self.get_serializer(instance)
+        return Response(
+            {
+                "success": True,
+                "data": serializer.data,
+            },
+            status=status.HTTP_200_OK,
+        )
 
 
 # ============================================================================
-# NOTIFICATIONS API
+# NOTIFICATIONS API (CUSTOMER ACTIVITIES & DETAIL VIEWS)
 # ============================================================================
 
 @extend_schema_view(
@@ -246,7 +309,6 @@ class NotificationDetailView(generics.RetrieveDestroyAPIView):
 
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
-        # Auto mark as read on view
         instance.mark_as_read()
         serializer = self.get_serializer(instance)
         return Response(
