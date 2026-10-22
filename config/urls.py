@@ -49,6 +49,14 @@ class DirectLoginView(LoginView):
     pass
 
 
+from apps.common.views import ContactFormView
+
+
+@extend_schema(exclude=True)
+class DirectContactFormView(ContactFormView):
+    pass
+
+
 urlpatterns = [
     # Convenient redirects to interactive API documentation
     path("", RedirectView.as_view(url="/api/v1/docs/", permanent=False), name="root-docs-redirect"),
@@ -107,6 +115,14 @@ urlpatterns = [
 
     # Promotional discounts & special offers API
     path("api/v1/promotions/", include("apps.promotions.urls")),
+
+    # Contact Us & Customer Inquiries API
+    path("api/v1/contact/", include("apps.common.urls")),
+    path("contact/", DirectContactFormView.as_view(), name="contact-submit-direct"),
+
+    # User Notifications API
+    path("api/v1/notifications/", include("apps.common.notifications_urls")),
+    path("notifications/", include("apps.common.notifications_urls")),
 
     # OpenAPI Schema & Interactive Documentation
     path(
