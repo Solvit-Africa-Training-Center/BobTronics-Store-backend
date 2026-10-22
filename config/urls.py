@@ -39,6 +39,24 @@ def health_check(request):
     return Response({"status": "ok"})
 
 
+@extend_schema(exclude=True)
+class DirectGoogleLoginView(GoogleLoginView):
+    pass
+
+
+@extend_schema(exclude=True)
+class DirectLoginView(LoginView):
+    pass
+
+
+from apps.common.views import ContactFormView
+
+
+@extend_schema(exclude=True)
+class DirectContactFormView(ContactFormView):
+    pass
+
+
 urlpatterns = [
     # Convenient redirects to interactive API documentation
     path("", RedirectView.as_view(url="/api/v1/docs/", permanent=False), name="root-docs-redirect"),
@@ -57,6 +75,15 @@ urlpatterns = [
         "api/v1/auth/refresh/",
         TokenRefreshView.as_view(permission_classes=[AllowAny]),
         name="token-refresh",
+    ),
+
+    # Direct auth aliases (for frontend compatibility)
+    path("auth/google/", DirectGoogleLoginView.as_view(), name="auth-google-login-direct"),
+    path("auth/login/", DirectLoginView.as_view(), name="auth-login-direct"),
+    path(
+        "auth/refresh/",
+        TokenRefreshView.as_view(permission_classes=[AllowAny]),
+        name="token-refresh-direct",
     ),
 
     # Accounts API
@@ -88,6 +115,14 @@ urlpatterns = [
 
     # Promotional discounts & special offers API
     path("api/v1/promotions/", include("apps.promotions.urls")),
+
+    # Contact Us & Customer Inquiries API
+    path("api/v1/contact/", include("apps.common.urls")),
+    path("contact/", DirectContactFormView.as_view(), name="contact-submit-direct"),
+
+    # User Notifications API
+    path("api/v1/notifications/", include("apps.common.notifications_urls")),
+    path("notifications/", include("apps.common.notifications_urls")),
 
     # OpenAPI Schema & Interactive Documentation
     path(
